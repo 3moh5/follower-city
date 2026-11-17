@@ -1,0 +1,13 @@
+{
+  "name": "follower-city",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Followers City with Meta Instagram Unified Login",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
