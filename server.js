@@ -10,13 +10,6 @@
 //   APP_SECRET      سر تطبيق Meta للتحقق من توقيع الـ Webhook (موصى به)
 //   POLL_SECONDS    كل كم ثانية يقرأ التعليقات (الافتراضي 120)
 //   MEDIA_LIMIT     عدد آخر المنشورات التي تُفحص (الافتراضي 12)
-//
-// ما الذي تتيحه واجهة إنستغرام الرسمية؟
-//   - عدد المتابعين (followers_count): نعم.
-//   - من علّق ونص التعليق: نعم (للحسابات المهنية).
-//   - قائمة المتابعين بالأسماء: لا. لهذا يوجد استيراد ملف المتابعين في لوحة التحكم.
-//   - من وضع إعجاباً بالاسم: لا. يظهر فقط عدد الإعجابات الإجمالي لكل منشور.
-//   لذلك يُبنى البيت تلقائياً لكل من يعلّق، ويُضاف المتابعون الآخرون من ملف التصدير أو يدوياً.
 
 const http = require('http');
 const crypto = require('crypto');
@@ -31,8 +24,8 @@ const VERIFY_TOKEN = process.env.VERIFY_TOKEN || '';
 const APP_SECRET = process.env.APP_SECRET || '';
 const POLL_SECONDS = +process.env.POLL_SECONDS || 120;
 const MEDIA_LIMIT = +process.env.MEDIA_LIMIT || 12;
-const CLAIM_WORD = (process.env.CLAIM_WORD || '').trim().toLowerCase(); // كلمة مطلوبة في التعليق لبناء أول بيت (اختيارية)
-const ANON_HOUSES = process.env.ANON_HOUSES === '1'; // بيوت مجهولة للمتابعين الصامتين (معطلة افتراضياً)
+const CLAIM_WORD = (process.env.CLAIM_WORD || '').trim().toLowerCase();
+const ANON_HOUSES = process.env.ANON_HOUSES === '1';
 const GRAPH_VERSION = process.env.GRAPH_VERSION || 'v25.0';
 const GRAPH = `https://graph.instagram.com/${GRAPH_VERSION}`;
 const GRAPH_FB = `https://graph.facebook.com/${GRAPH_VERSION}`;
@@ -44,13 +37,106 @@ const FB_APP_ID = process.env.FB_APP_ID || '';
 const FB_APP_SECRET = process.env.FB_APP_SECRET || '';
 const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'data.json');
 
-let db = { models: [], igUser: '', followers: null, villagers: {}, layout: null, seen: {}, updated: 0, baseline: null, anonSeq: 0, claims: {}, token: '', tokenSrc: '', tokenAt: 0 };
-try { db = Object.assign(db, JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'))); } catch (e) {}
+let db = {
+  models: [],
+  igUser: '',
+  followers: null,
+  villagers: {},
+  layout: null,
+  lifeSettings: {
+    walkers: true,
+    walkerCount: 22,
+    walkerSpeed: 1,
+    carCount: 12,
+    carSpeed: 1,
+    carMode: 'mixed',
+    carColor: '#d94a38'
+  },
+  seen: {},
+  updated: 0,
+  baseline: null,
+  anonSeq: 0,
+  claims: {},
+  token: '',
+  tokenSrc: '',
+  tokenAt: 0
+};
+
+try {
+  db = Object.assign(db, JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')));
+} catch (e) {}
+
 if (!Array.isArray(db.models)) db.models = [];
+
+// إعدادات الحركة المشتركة التي يرسلها المدير وتصل إلى جميع الزوار.
+const DEFAULT_LIFE_SETTINGS = {
+  walkers: true,
+  walkerCount: 22,
+  walkerSpeed: 1,
+  carCount: 12,
+  carSpeed: 1,
+  carMode: 'mixed',
+  carColor: '#d94a38'
+};
+
+function cleanLifeSettings(input, current) {
+  const result = Object.assign(
+    {},
+    DEFAULT_LIFE_SETTINGS,
+    current || {}
+  );
+
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return result;
+  }
+
+  if (typeof input.walkers === 'boolean') {
+    result.walkers = input.walkers;
+  }
+
+  for (const key of ['walkerCount', 'carCount']) {
+    if (input[key] !== undefined && Number.isFinite(Number(input[key]))) {
+      result[key] = Math.max(
+        0,
+        Math.min(100, Math.round(Number(input[key])))
+      );
+    }
+  }
+
+  for (const key of ['walkerSpeed', 'carSpeed']) {
+    if (input[key] !== undefined && Number.isFinite(Number(input[key]))) {
+      result[key] = Math.max(
+        0,
+        Math.min(10, Number(input[key]))
+      );
+    }
+  }
+
+  if (input.carMode === 'mixed' || input.carMode === 'single') {
+    result.carMode = input.carMode;
+  }
+
+  if (
+    typeof input.carColor === 'string' &&
+    /^#[0-9a-fA-F]{6}$/.test(input.carColor)
+  ) {
+    result.carColor = input.carColor;
+  }
+
+  return result;
+}
+
+db.lifeSettings = cleanLifeSettings(db.lifeSettings);
+
 const MODEL_DIR = path.join(path.dirname(DATA_FILE), 'models');
-try { fs.mkdirSync(MODEL_DIR, { recursive: true }); } catch (e) {}
+
+try {
+  fs.mkdirSync(MODEL_DIR, { recursive: true });
+} catch (e) {}
+
 let saveTimer = null;
 
+// الرمز: يُستخدم الرمز المجدَّد المحفوظ ما لم تضع رمزاً جديداً في المتغيرات
 if (db.tokenSrc !== IG_TOKEN) {
   db.token = IG_TOKEN;
   db.tokenSrc = IG_TOKEN;
@@ -62,24 +148,45 @@ if (db.tokenSrc !== IG_TOKEN) {
 }
 
 let TOKEN = db.token || IG_TOKEN;
-const isFb = () => (db.tokenKind ? (db.tokenKind === 'fb' || db.tokenKind === 'unified') : /^EA/.test(TOKEN));
+
+const isFb = () => (
+  db.tokenKind
+    ? (db.tokenKind === 'fb' || db.tokenKind === 'unified')
+    : /^EA/.test(TOKEN)
+);
+
 const isUnified = () => db.tokenKind === 'unified';
 const base = () => (isFb() ? GRAPH_FB : GRAPH);
+
 let exchangeError = '';
 
 function save() {
   clearTimeout(saveTimer);
+
   saveTimer = setTimeout(() => {
     fs.writeFile(DATA_FILE, JSON.stringify(db), () => {});
   }, 300);
 }
 
-const norm = (u) => String(u || '').trim().replace(/^@/, '').toLowerCase().replace(/[^a-z0-9._]/g, '');
+const norm = (u) =>
+  String(u || '')
+    .trim()
+    .replace(/^@/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9._]/g, '');
 
 function addComment(username, commentId, timestamp, text) {
   const u = norm(username);
+
   if (!u || u === norm(db.igUser)) return false;
-  if (!db.villagers[u] && CLAIM_WORD && !String(text || '').toLowerCase().includes(CLAIM_WORD)) return false;
+
+  if (
+    !db.villagers[u] &&
+    CLAIM_WORD &&
+    !String(text || '').toLowerCase().includes(CLAIM_WORD)
+  ) {
+    return false;
+  }
 
   if (commentId) {
     if (db.seen[commentId]) return false;
@@ -87,15 +194,19 @@ function addComment(username, commentId, timestamp, text) {
   }
 
   let v = db.villagers[u];
+
   if (!v) {
     v = db.villagers[u] = {
       username: u,
       name: u,
       comments: 0,
       likes: 0,
-      since: timestamp ? Date.parse(timestamp) || Date.now() : Date.now(),
+      since: timestamp
+        ? Date.parse(timestamp) || Date.now()
+        : Date.now(),
     };
 
+    // إن وُجد بيت مجهول غير مطالَب به، يصبح هذا الشخص صاحبه
     const anon = Object.values(db.villagers)
       .filter((x) => x.anon)
       .sort((a, b) => a.since - b.since)[0];
@@ -109,30 +220,47 @@ function addComment(username, commentId, timestamp, text) {
 
   v.comments += 1;
   db.updated = Date.now();
+
   return true;
 }
 
 // ---- توزيع البيوت على الخريطة من الخادم نفسه ----
+
 const DIST = 4;
 
 const hashS = (s) => {
   let h = 2166136261;
+
   for (let i = 0; i < s.length; i++) {
     h ^= s.charCodeAt(i);
     h = Math.imul(h, 16777619);
   }
+
   return h >>> 0;
 };
 
 function districtType(dx, dy) {
   const k = dx + ',' + dy;
-  const ov = db.layout && db.layout.districts && db.layout.districts[k];
+
+  const ov =
+    db.layout &&
+    db.layout.districts &&
+    db.layout.districts[k];
 
   if (ov && ov.type) return ov.type;
   if (dx === 0 && dy === 0) return 'residential';
 
   const r = hashS('d' + k) % 10;
-  return r < 5 ? 'residential' : r < 7 ? 'farm' : r < 8 ? 'industrial' : r < 9 ? 'commercial' : 'park';
+
+  return r < 5
+    ? 'residential'
+    : r < 7
+      ? 'farm'
+      : r < 8
+        ? 'industrial'
+        : r < 9
+          ? 'commercial'
+          : 'park';
 }
 
 function* spiral() {
@@ -149,9 +277,15 @@ function* spiral() {
 function freePlot(plots) {
   for (const [x, y] of spiral()) {
     const k = x + ',' + y;
+
     if (plots[k]) continue;
 
-    if (districtType(Math.floor(x / DIST), Math.floor(y / DIST)) === 'residential') {
+    if (
+      districtType(
+        Math.floor(x / DIST),
+        Math.floor(y / DIST)
+      ) === 'residential'
+    ) {
       return k;
     }
   }
@@ -160,13 +294,23 @@ function freePlot(plots) {
 }
 
 const DEMO_USERS = [
-  'sara_art', 'ahmed.m', 'layla_daily', 'omar.k',
-  'noor_s', 'yousef.99', 'huda.z', 'khaled_t',
-  'maryam.q', 'ali_r', 'zainab.h', 'hasan.b'
+  'sara_art',
+  'ahmed.m',
+  'layla_daily',
+  'omar.k',
+  'noor_s',
+  'yousef.99',
+  'huda.z',
+  'khaled_t',
+  'maryam.q',
+  'ali_r',
+  'zainab.h',
+  'hasan.b'
 ];
 
 function purgeDemoPlots() {
   const L = db.layout;
+
   if (!L || !L.plots) return;
 
   Object.keys(L.plots).forEach((k) => {
@@ -174,7 +318,10 @@ function purgeDemoPlots() {
 
     if (o && DEMO_USERS.includes(o) && !db.villagers[o]) {
       delete L.plots[k];
-      if (L.villagers) delete L.villagers[o];
+
+      if (L.villagers) {
+        delete L.villagers[o];
+      }
     }
   });
 }
@@ -183,10 +330,15 @@ function assignPlots() {
   purgeDemoPlots();
 
   if (!db.layout) {
-    db.layout = { plots: {}, districts: {}, villagers: {} };
+    db.layout = {
+      plots: {},
+      districts: {},
+      villagers: {}
+    };
   }
 
   const L = db.layout;
+
   L.plots = L.plots || {};
   L.districts = L.districts || {};
   L.villagers = L.villagers || {};
@@ -194,17 +346,23 @@ function assignPlots() {
   const owners = {};
 
   Object.keys(L.plots).forEach((k) => {
-    if (L.plots[k].owner) owners[L.plots[k].owner] = k;
+    if (L.plots[k].owner) {
+      owners[L.plots[k].owner] = k;
+    }
   });
 
   let changed = false;
 
   Object.values(db.villagers)
-    .sort((a, b) => (a.since - b.since) || (a.username < b.username ? -1 : 1))
+    .sort((a, b) =>
+      (a.since - b.since) ||
+      (a.username < b.username ? -1 : 1)
+    )
     .forEach((v) => {
       if (owners[v.username]) return;
 
       const k = freePlot(L.plots);
+
       if (!k) return;
 
       L.plots[k] = {
@@ -219,7 +377,13 @@ function assignPlots() {
       };
 
       owners[v.username] = k;
-      L.villagers[v.username] = Object.assign({}, L.villagers[v.username], { plot: k });
+
+      L.villagers[v.username] = Object.assign(
+        {},
+        L.villagers[v.username],
+        { plot: k }
+      );
+
       changed = true;
     });
 
@@ -230,21 +394,34 @@ async function graph(pathAndQuery) {
   if (pathAndQuery.startsWith('http')) {
     const r0 = await fetch(pathAndQuery);
     const j0 = await r0.json();
+
     if (!r0.ok) throw igErr(j0, r0.status);
+
     return j0;
   }
 
   const sep = pathAndQuery.includes('?') ? '&' : '?';
-  const r = await fetch(`${base()}${pathAndQuery}${sep}access_token=${encodeURIComponent(TOKEN)}`);
+
+  const r = await fetch(
+    `${base()}${pathAndQuery}${sep}access_token=${encodeURIComponent(TOKEN)}`
+  );
+
   const j = await r.json();
 
   if (!r.ok) throw igErr(j, r.status);
+
   return j;
 }
 
 function igErr(j, status) {
-  const e = new Error(j && j.error ? j.error.message : `HTTP ${status}`);
+  const e = new Error(
+    j && j.error
+      ? j.error.message
+      : `HTTP ${status}`
+  );
+
   e.code = j && j.error ? j.error.code : status;
+
   return e;
 }
 
@@ -253,9 +430,11 @@ function hint(e) {
 
   if (isFb() && e.code === 190) {
     return 'انتهى الرمز. رموز فيسبوك القصيرة تنتهي بعد ساعة تقريباً. ' +
-      (FB_APP_ID && FB_APP_SECRET
-        ? (exchangeError || 'ولّد رمزاً جديداً وضعه في IG_TOKEN.')
-        : 'ضع FB_APP_ID وFB_APP_SECRET في المتغيرات ليحوّله الخادم إلى رمز مدته 60 يوماً.');
+      (
+        FB_APP_ID && FB_APP_SECRET
+          ? (exchangeError || 'ولّد رمزاً جديداً وضعه في IG_TOKEN.')
+          : 'ضع FB_APP_ID وFB_APP_SECRET في المتغيرات ليحوّله الخادم إلى رمز مدته 60 يوماً.'
+      );
   }
 
   if (e.code === 190 || /token|oauth|expired/i.test(m)) {
@@ -282,41 +461,69 @@ async function igNode() {
   let found = null;
 
   if (isUnified()) {
-    const assigned = await graph('/me/assigned_instagram_accounts?fields=id,username&limit=100');
-    found = (assigned.data || []).find((account) => account && account.id);
+    const assigned = await graph(
+      '/me/assigned_instagram_accounts?fields=id,username&limit=100'
+    );
+
+    found = (assigned.data || []).find(
+      (account) => account && account.id
+    );
 
     if (found && found.id) {
       IG_ID = found.id;
       db.igId = IG_ID;
-      if (found.username) db.igUser = found.username;
+
+      if (found.username) {
+        db.igUser = found.username;
+      }
+
       save();
+
       return IG_ID;
     }
 
-    throw new Error('لم يعثر Meta على حساب Instagram مُسند إلى إعداد Unified Login. تأكد من اختيار حساب Instagram في التكوين ومنح الصلاحيات.');
+    throw new Error(
+      'لم يعثر Meta على حساب Instagram مُسند إلى إعداد Unified Login. تأكد من اختيار حساب Instagram في التكوين ومنح الصلاحيات.'
+    );
   }
 
   try {
-    const acc = await graph('/me/accounts?fields=name,instagram_business_account%7Bid,username%7D&limit=50');
-    found = (acc.data || []).map((p) => p.instagram_business_account).find(Boolean);
+    const acc = await graph(
+      '/me/accounts?fields=name,instagram_business_account%7Bid,username%7D&limit=50'
+    );
+
+    found = (acc.data || [])
+      .map((p) => p.instagram_business_account)
+      .find(Boolean);
+
   } catch (e) {
     try {
-      const pg = await graph('/me?fields=instagram_business_account%7Bid,username%7D');
+      const pg = await graph(
+        '/me?fields=instagram_business_account%7Bid,username%7D'
+      );
+
       found = pg.instagram_business_account;
+
     } catch (e2) {
       if (!IG_USER_ID) throw e;
     }
   }
 
-  if (found && found.id) IG_ID = found.id;
-  else if (IG_USER_ID) IG_ID = IG_USER_ID;
-  else {
-    throw new Error('لم أجد حساب إنستغرام مهنياً مرتبطاً بصفحة فيسبوك لهذا الرمز. اربط حسابك بصفحة فيسبوك، ووافق على صلاحيات الصفحات عند توليد الرمز.');
+  if (found && found.id) {
+    IG_ID = found.id;
+  } else if (IG_USER_ID) {
+    IG_ID = IG_USER_ID;
+  } else {
+    throw new Error(
+      'لم أجد حساب إنستغرام مهنياً مرتبطاً بصفحة فيسبوك لهذا الرمز. اربط حسابك بصفحة فيسبوك، ووافق على صلاحيات الصفحات عند توليد الرمز.'
+    );
   }
 
   db.igId = IG_ID;
+
   return IG_ID;
 }
+
 let lastPollError = '';
 
 async function poll() {
@@ -327,14 +534,19 @@ async function poll() {
 
   try {
     const node = await igNode();
-    const me = await graph(`/${node}?fields=username,followers_count`);
+
+    const me = await graph(
+      `/${node}?fields=username,followers_count`
+    );
 
     db.igUser = me.username || db.igUser;
 
     if (typeof me.followers_count === 'number') {
       db.followers = me.followers_count;
 
-      if (db.baseline === null) db.baseline = me.followers_count;
+      if (db.baseline === null) {
+        db.baseline = me.followers_count;
+      }
 
       const delta = me.followers_count - db.baseline;
 
@@ -357,32 +569,46 @@ async function poll() {
       db.baseline = me.followers_count;
     }
 
-    const media = await graph(`/${node}/media?fields=id&limit=${MEDIA_LIMIT}`);
+    const media = await graph(
+      `/${node}/media?fields=id&limit=${MEDIA_LIMIT}`
+    );
 
     for (const m of media.data || []) {
-      let url = `/${m.id}/comments?fields=id,username,text,timestamp&limit=100`;
+      let url =
+        `/${m.id}/comments?fields=id,username,text,timestamp&limit=100`;
 
       for (let page = 0; page < 5 && url; page++) {
         const c = await graph(url);
 
         for (const it of c.data || []) {
-          addComment(it.username, it.id, it.timestamp, it.text);
+          addComment(
+            it.username,
+            it.id,
+            it.timestamp,
+            it.text
+          );
         }
 
-        url = c.paging && c.paging.next ? c.paging.next : null;
+        url = c.paging && c.paging.next
+          ? c.paging.next
+          : null;
       }
     }
 
     db.updated = Date.now();
     lastPollError = '';
+
     assignPlots();
     save();
+
   } catch (e) {
-    lastPollError = String(e.message || e) + (hint(e) ? ' — ' + hint(e) : '');
+    lastPollError =
+      String(e.message || e) +
+      (hint(e) ? ' — ' + hint(e) : '');
+
     console.error('poll error:', lastPollError);
   }
 }
-
 async function exchangeFb() {
   if (!FB_APP_ID || !FB_APP_SECRET) return;
 
@@ -392,7 +618,11 @@ async function exchangeFb() {
   ) return;
 
   try {
-    const u = `${GRAPH_FB}/oauth/access_token?grant_type=fb_exchange_token&client_id=${encodeURIComponent(FB_APP_ID)}&client_secret=${encodeURIComponent(FB_APP_SECRET)}&fb_exchange_token=${encodeURIComponent(TOKEN)}`;
+    const u =
+      `${GRAPH_FB}/oauth/access_token?grant_type=fb_exchange_token` +
+      `&client_id=${encodeURIComponent(FB_APP_ID)}` +
+      `&client_secret=${encodeURIComponent(FB_APP_SECRET)}` +
+      `&fb_exchange_token=${encodeURIComponent(TOKEN)}`;
 
     const r = await fetch(u);
     const j = await r.json();
@@ -407,13 +637,16 @@ async function exchangeFb() {
 
       fs.writeFileSync(DATA_FILE, JSON.stringify(db));
       console.log('تم تحويل الرمز إلى رمز طويل الأمد');
+
     } else {
-      exchangeError = 'فشل تحويل الرمز إلى طويل الأمد: ' +
+      exchangeError =
+        'فشل تحويل الرمز إلى طويل الأمد: ' +
         (j && j.error ? j.error.message : r.status) +
         ' (تحقق من FB_APP_ID وFB_APP_SECRET)';
 
       console.error(exchangeError);
     }
+
   } catch (e) {
     exchangeError = 'تعذر تحويل الرمز: ' + e.message;
     console.error(exchangeError);
@@ -441,9 +674,14 @@ async function refreshToken() {
 
       fs.writeFileSync(DATA_FILE, JSON.stringify(db));
       console.log('تم تجديد الرمز');
+
     } else {
-      console.error('refresh failed:', j && j.error ? j.error.message : r.status);
+      console.error(
+        'refresh failed:',
+        j && j.error ? j.error.message : r.status
+      );
     }
+
   } catch (e) {
     console.error('refresh error:', e.message);
   }
@@ -451,6 +689,7 @@ async function refreshToken() {
 
 setInterval(poll, POLL_SECONDS * 1000);
 setInterval(refreshToken, 6 * 3600 * 1000);
+
 refreshToken().finally(poll);
 
 // ---- الربط المباشر (Instagram Business Login) ----
@@ -474,14 +713,14 @@ function newState(redirect) {
 }
 
 async function connectWithCode(code, redirect) {
-  // Unified Login exchanges the authorization code against the Meta Graph OAuth endpoint.
-
-  const u = `${GRAPH_FB}/oauth/access_token?` + new URLSearchParams({
-    client_id: IG_APP_ID,
-    client_secret: IG_APP_SECRET,
-    redirect_uri: redirect,
-    code: String(code).replace(/#_$/, ''),
-  });
+  const u =
+    `${GRAPH_FB}/oauth/access_token?` +
+    new URLSearchParams({
+      client_id: IG_APP_ID,
+      client_secret: IG_APP_SECRET,
+      redirect_uri: redirect,
+      code: String(code).replace(/#_$/, ''),
+    });
 
   const r = await fetch(u);
   const j = await r.json();
@@ -510,16 +749,29 @@ async function connectWithCode(code, redirect) {
 
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-key');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, x-admin-key'
+  );
+  res.setHeader(
+    'Access-Control-Allow-Methods',
+    'GET,POST,OPTIONS'
+  );
 }
 
 function send(res, code, obj, type) {
   cors(res);
+
   res.writeHead(code, {
-    'Content-Type': type || 'application/json; charset=utf-8'
+    'Content-Type':
+      type || 'application/json; charset=utf-8'
   });
-  res.end(typeof obj === 'string' ? obj : JSON.stringify(obj));
+
+  res.end(
+    typeof obj === 'string'
+      ? obj
+      : JSON.stringify(obj)
+  );
 }
 
 function readBody(req, limit = 5e6) {
@@ -538,7 +790,10 @@ function readBody(req, limit = 5e6) {
       }
     });
 
-    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('end', () => {
+      resolve(Buffer.concat(chunks));
+    });
+
     req.on('error', reject);
   });
 }
@@ -547,7 +802,10 @@ const safeEq = (a, b) => {
   const x = Buffer.from(String(a));
   const y = Buffer.from(String(b));
 
-  return x.length === y.length && crypto.timingSafeEqual(x, y);
+  return (
+    x.length === y.length &&
+    crypto.timingSafeEqual(x, y)
+  );
 };
 
 const server = http.createServer(async (req, res) => {
@@ -559,41 +817,72 @@ const server = http.createServer(async (req, res) => {
     return res.end();
   }
 
-  if (url.pathname === '/api/state' && req.method === 'GET') {
+  // حالة القرية العامة، بما فيها إعدادات حركة السيارات والمشاة
+  if (
+    url.pathname === '/api/state' &&
+    req.method === 'GET'
+  ) {
     return send(res, 200, {
       igUser: db.igUser,
       followers: db.followers,
       villagers: Object.values(db.villagers),
       layout: db.layout,
+      lifeSettings: db.lifeSettings,
       claims: db.claims,
       models: db.models,
       hasToken: !!TOKEN,
-      canConnect: !!(IG_APP_ID && IG_APP_SECRET && IG_CONFIG_ID && IG_REDIRECT_URI),
+      canConnect: !!(
+        IG_APP_ID &&
+        IG_APP_SECRET &&
+        IG_CONFIG_ID &&
+        IG_REDIRECT_URI
+      ),
       redirectUri: IG_REDIRECT_URI,
-      tokenType: isUnified() ? 'unified' : (isFb() ? 'facebook' : 'instagram'),
+      tokenType: isUnified()
+        ? 'unified'
+        : (isFb() ? 'facebook' : 'instagram'),
       longLived: !!db.fbExchangedFor,
       updated: db.updated,
       error: lastPollError || undefined,
     });
   }
-    if (url.pathname === '/api/auth/instagram/url' && req.method === 'POST') {
-    if (!ADMIN_KEY || !safeEq(req.headers['x-admin-key'] || '', ADMIN_KEY)) {
+
+  // إنشاء رابط تسجيل دخول Instagram
+  if (
+    url.pathname === '/api/auth/instagram/url' &&
+    req.method === 'POST'
+  ) {
+    if (
+      !ADMIN_KEY ||
+      !safeEq(req.headers['x-admin-key'] || '', ADMIN_KEY)
+    ) {
       return send(res, 403, { error: 'forbidden' });
     }
 
-    if (!IG_APP_ID || !IG_APP_SECRET || !IG_CONFIG_ID || !IG_REDIRECT_URI) {
+    if (
+      !IG_APP_ID ||
+      !IG_APP_SECRET ||
+      !IG_CONFIG_ID ||
+      !IG_REDIRECT_URI
+    ) {
       return send(res, 400, {
-        error: 'أكمل IG_APP_ID وIG_APP_SECRET وIG_CONFIG_ID وIG_REDIRECT_URI في Railway أولاً'
+        error:
+          'أكمل IG_APP_ID وIG_APP_SECRET وIG_CONFIG_ID وIG_REDIRECT_URI في Railway أولاً'
       });
     }
 
     try {
       const body = await readBody(req);
+
       const requested = body.length
         ? JSON.parse(body.toString('utf8')).redirect
         : '';
 
-      if (!/^https:\/\/[^/]+\/auth\/instagram\/callback$/.test(IG_REDIRECT_URI)) {
+      if (
+        !/^https:\/\/[^/]+\/auth\/instagram\/callback$/.test(
+          IG_REDIRECT_URI
+        )
+      ) {
         throw new Error('bad configured redirect');
       }
 
@@ -603,7 +892,8 @@ const server = http.createServer(async (req, res) => {
 
       const st = newState(IG_REDIRECT_URI);
 
-      const u = `https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth?` +
+      const u =
+        `https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth?` +
         new URLSearchParams({
           client_id: IG_APP_ID,
           config_id: IG_CONFIG_ID,
@@ -617,25 +907,42 @@ const server = http.createServer(async (req, res) => {
         url: u,
         redirect: IG_REDIRECT_URI
       });
+
     } catch (e) {
-      console.error('Unified Login URL error:', e.message);
+      console.error(
+        'Unified Login URL error:',
+        e.message
+      );
 
       return send(res, 400, {
-        error: 'تعذر إنشاء رابط Unified Login. تحقق من IG_REDIRECT_URI وأنه مطابق تماماً في Meta.'
+        error:
+          'تعذر إنشاء رابط Unified Login. تحقق من IG_REDIRECT_URI وأنه مطابق تماماً في Meta.'
       });
     }
   }
 
-  if (url.pathname === '/auth/instagram/callback' && req.method === 'GET') {
+  // عودة Instagram بعد تسجيل الدخول
+  if (
+    url.pathname === '/auth/instagram/callback' &&
+    req.method === 'GET'
+  ) {
     const back = (q) => {
-      res.writeHead(302, { Location: '/?' + q });
+      res.writeHead(302, {
+        Location: '/?' + q
+      });
+
       res.end();
     };
 
-    const st = oauthStates.get(url.searchParams.get('state') || '');
+    const st = oauthStates.get(
+      url.searchParams.get('state') || ''
+    );
 
     if (!st || st.exp < Date.now()) {
-      return back('connect_error=' + encodeURIComponent('انتهت صلاحية الطلب، أعد المحاولة'));
+      return back(
+        'connect_error=' +
+        encodeURIComponent('انتهت صلاحية الطلب، أعد المحاولة')
+      );
     }
 
     oauthStates.delete(url.searchParams.get('state'));
@@ -643,38 +950,62 @@ const server = http.createServer(async (req, res) => {
     if (url.searchParams.get('error')) {
       return back(
         'connect_error=' +
-        encodeURIComponent(url.searchParams.get('error_description') || 'تم إلغاء الربط')
+        encodeURIComponent(
+          url.searchParams.get('error_description') ||
+          'تم إلغاء الربط'
+        )
       );
     }
 
     const code = url.searchParams.get('code');
 
     if (!code) {
-      return back('connect_error=' + encodeURIComponent('لم يصل رمز التفويض'));
+      return back(
+        'connect_error=' +
+        encodeURIComponent('لم يصل رمز التفويض')
+      );
     }
 
     try {
       await connectWithCode(code, st.redirect);
       poll();
+
       return back('connected=1');
+
     } catch (e) {
       return back(
         'connect_error=' +
-        encodeURIComponent(String(e.message || e).slice(0, 200))
+        encodeURIComponent(
+          String(e.message || e).slice(0, 200)
+        )
       );
     }
   }
 
-  if (url.pathname === '/api/auth' && req.method === 'POST') {
-    if (!ADMIN_KEY || !safeEq(req.headers['x-admin-key'] || '', ADMIN_KEY)) {
+  // التحقق من المدير
+  if (
+    url.pathname === '/api/auth' &&
+    req.method === 'POST'
+  ) {
+    if (
+      !ADMIN_KEY ||
+      !safeEq(req.headers['x-admin-key'] || '', ADMIN_KEY)
+    ) {
       return send(res, 403, { error: 'forbidden' });
     }
 
     return send(res, 200, { ok: true });
   }
 
-  if (url.pathname === '/api/model' && req.method === 'POST') {
-    if (!ADMIN_KEY || !safeEq(req.headers['x-admin-key'] || '', ADMIN_KEY)) {
+  // رفع نموذج ثلاثي الأبعاد
+  if (
+    url.pathname === '/api/model' &&
+    req.method === 'POST'
+  ) {
+    if (
+      !ADMIN_KEY ||
+      !safeEq(req.headers['x-admin-key'] || '', ADMIN_KEY)
+    ) {
       return send(res, 403, { error: 'forbidden' });
     }
 
@@ -682,7 +1013,10 @@ const server = http.createServer(async (req, res) => {
       const buf = await readBody(req, 40e6);
       const id = 'm' + Date.now().toString(36);
 
-      fs.writeFileSync(path.join(MODEL_DIR, id + '.glb'), buf);
+      fs.writeFileSync(
+        path.join(MODEL_DIR, id + '.glb'),
+        buf
+      );
 
       db.models.push({
         id,
@@ -690,24 +1024,39 @@ const server = http.createServer(async (req, res) => {
       });
 
       save();
+
       return send(res, 200, { id });
+
     } catch (e) {
-      return send(res, 400, { error: 'upload failed' });
+      return send(res, 400, {
+        error: 'upload failed'
+      });
     }
   }
 
-  if (url.pathname === '/api/model/delete' && req.method === 'POST') {
-    if (!ADMIN_KEY || !safeEq(req.headers['x-admin-key'] || '', ADMIN_KEY)) {
+  // حذف نموذج
+  if (
+    url.pathname === '/api/model/delete' &&
+    req.method === 'POST'
+  ) {
+    if (
+      !ADMIN_KEY ||
+      !safeEq(req.headers['x-admin-key'] || '', ADMIN_KEY)
+    ) {
       return send(res, 403, { error: 'forbidden' });
     }
 
     const id = url.searchParams.get('id') || '';
 
     if (/^m[a-z0-9]+$/.test(id)) {
-      db.models = db.models.filter((m) => m.id !== id);
+      db.models = db.models.filter(
+        (m) => m.id !== id
+      );
 
       try {
-        fs.unlinkSync(path.join(MODEL_DIR, id + '.glb'));
+        fs.unlinkSync(
+          path.join(MODEL_DIR, id + '.glb')
+        );
       } catch (e) {}
 
       save();
@@ -716,31 +1065,54 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, { ok: true });
   }
 
-  if (url.pathname.startsWith('/api/model/') && req.method === 'GET') {
-    const id = url.pathname.slice('/api/model/'.length);
+  // عرض نموذج ثلاثي الأبعاد
+  if (
+    url.pathname.startsWith('/api/model/') &&
+    req.method === 'GET'
+  ) {
+    const id = url.pathname.slice(
+      '/api/model/'.length
+    );
 
     if (!/^m[a-z0-9]+$/.test(id)) {
-      return send(res, 404, { error: 'not found' });
+      return send(res, 404, {
+        error: 'not found'
+      });
     }
 
     try {
-      const buf = fs.readFileSync(path.join(MODEL_DIR, id + '.glb'));
+      const buf = fs.readFileSync(
+        path.join(MODEL_DIR, id + '.glb')
+      );
 
       cors(res);
+
       res.writeHead(200, {
         'Content-Type': 'model/gltf-binary',
         'Cache-Control': 'public, max-age=86400'
       });
 
       return res.end(buf);
+
     } catch (e) {
-      return send(res, 404, { error: 'not found' });
+      return send(res, 404, {
+        error: 'not found'
+      });
     }
   }
 
-  if (url.pathname === '/api/refresh' && req.method === 'POST') {
-    if (!ADMIN_KEY || !safeEq(req.headers['x-admin-key'] || '', ADMIN_KEY)) {
-      return send(res, 403, { error: 'forbidden' });
+  // تحديث بيانات Instagram يدوياً
+  if (
+    url.pathname === '/api/refresh' &&
+    req.method === 'POST'
+  ) {
+    if (
+      !ADMIN_KEY ||
+      !safeEq(req.headers['x-admin-key'] || '', ADMIN_KEY)
+    ) {
+      return send(res, 403, {
+        error: 'forbidden'
+      });
     }
 
     await poll();
@@ -751,13 +1123,24 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  if (url.pathname === '/api/layout' && req.method === 'POST') {
-    if (!ADMIN_KEY || !safeEq(req.headers['x-admin-key'] || '', ADMIN_KEY)) {
-      return send(res, 403, { error: 'forbidden' });
+  // حفظ تخطيط القرية وإعدادات حركة الزوار
+  if (
+    url.pathname === '/api/layout' &&
+    req.method === 'POST'
+  ) {
+    if (
+      !ADMIN_KEY ||
+      !safeEq(req.headers['x-admin-key'] || '', ADMIN_KEY)
+    ) {
+      return send(res, 403, {
+        error: 'forbidden'
+      });
     }
 
     try {
-      const body = JSON.parse((await readBody(req)).toString('utf8'));
+      const body = JSON.parse(
+        (await readBody(req)).toString('utf8')
+      );
 
       db.layout = {
         plots: body.plots || {},
@@ -765,23 +1148,54 @@ const server = http.createServer(async (req, res) => {
         villagers: body.villagers || {}
       };
 
+      // حفظ إعدادات الحركة المشتركة إذا أرسلها المدير
+      if (
+        body.lifeSettings &&
+        typeof body.lifeSettings === 'object'
+      ) {
+        db.lifeSettings = cleanLifeSettings(
+          body.lifeSettings,
+          db.lifeSettings
+        );
+      }
+
       assignPlots();
       save();
 
-      return send(res, 200, { ok: true });
+      return send(res, 200, {
+        ok: true,
+        lifeSettings: db.lifeSettings
+      });
+
     } catch (e) {
-      return send(res, 400, { error: 'bad json' });
+      return send(res, 400, {
+        error: 'bad json'
+      });
     }
   }
 
-  if (url.pathname === '/api/add' && req.method === 'POST') {
-    if (!ADMIN_KEY || !safeEq(req.headers['x-admin-key'] || '', ADMIN_KEY)) {
-      return send(res, 403, { error: 'forbidden' });
+  // إضافة متابعين يدوياً
+  if (
+    url.pathname === '/api/add' &&
+    req.method === 'POST'
+  ) {
+    if (
+      !ADMIN_KEY ||
+      !safeEq(req.headers['x-admin-key'] || '', ADMIN_KEY)
+    ) {
+      return send(res, 403, {
+        error: 'forbidden'
+      });
     }
 
     try {
-      const body = JSON.parse((await readBody(req)).toString('utf8'));
-      const names = Array.isArray(body.usernames) ? body.usernames : [];
+      const body = JSON.parse(
+        (await readBody(req)).toString('utf8')
+      );
+
+      const names = Array.isArray(body.usernames)
+        ? body.usernames
+        : [];
 
       let n = 0;
 
@@ -802,54 +1216,89 @@ const server = http.createServer(async (req, res) => {
       }
 
       db.updated = Date.now();
+
       assignPlots();
       save();
 
-      return send(res, 200, { added: n });
+      return send(res, 200, {
+        added: n
+      });
+
     } catch (e) {
-      return send(res, 400, { error: 'bad json' });
+      return send(res, 400, {
+        error: 'bad json'
+      });
     }
   }
 
   // Meta Webhook: التحقق
-  if (url.pathname === '/webhook' && req.method === 'GET') {
+  if (
+    url.pathname === '/webhook' &&
+    req.method === 'GET'
+  ) {
     if (
       url.searchParams.get('hub.mode') === 'subscribe' &&
       VERIFY_TOKEN &&
       url.searchParams.get('hub.verify_token') === VERIFY_TOKEN
     ) {
       cors(res);
-      res.writeHead(200, { 'Content-Type': 'text/plain' });
 
-      return res.end(url.searchParams.get('hub.challenge') || '');
+      res.writeHead(200, {
+        'Content-Type': 'text/plain'
+      });
+
+      return res.end(
+        url.searchParams.get('hub.challenge') || ''
+      );
     }
 
-    return send(res, 403, 'forbidden', 'text/plain');
+    return send(
+      res,
+      403,
+      'forbidden',
+      'text/plain'
+    );
   }
 
   // Meta Webhook: استقبال التعليقات لحظياً
-  if (url.pathname === '/webhook' && req.method === 'POST') {
+  if (
+    url.pathname === '/webhook' &&
+    req.method === 'POST'
+  ) {
     try {
       const raw = await readBody(req);
 
       if (APP_SECRET) {
-        const sig = String(req.headers['x-hub-signature-256'] || '')
-          .replace('sha256=', '');
+        const sig = String(
+          req.headers['x-hub-signature-256'] || ''
+        ).replace('sha256=', '');
 
-        const exp = crypto.createHmac('sha256', APP_SECRET)
+        const exp = crypto
+          .createHmac('sha256', APP_SECRET)
           .update(raw)
           .digest('hex');
 
         if (!sig || !safeEq(sig, exp)) {
-          return send(res, 403, 'bad signature', 'text/plain');
+          return send(
+            res,
+            403,
+            'bad signature',
+            'text/plain'
+          );
         }
       }
 
-      const body = JSON.parse(raw.toString('utf8'));
+      const body = JSON.parse(
+        raw.toString('utf8')
+      );
 
       for (const entry of body.entry || []) {
         for (const ch of entry.changes || []) {
-          if (ch.field === 'comments' && ch.value && ch.value.from) {
+          if (
+            ch.field === 'comments' &&
+            ch.value &&
+            ch.value.from
+          ) {
             addComment(
               ch.value.from.username,
               ch.value.id,
@@ -863,34 +1312,62 @@ const server = http.createServer(async (req, res) => {
       }
 
       save();
-      return send(res, 200, 'ok', 'text/plain');
+
+      return send(
+        res,
+        200,
+        'ok',
+        'text/plain'
+      );
+
     } catch (e) {
-      return send(res, 400, 'bad request', 'text/plain');
+      return send(
+        res,
+        400,
+        'bad request',
+        'text/plain'
+      );
     }
   }
 
-  // تقديم صفحة اللعبة إن وُضع index.html بجانب الملف
+  // تقديم صفحة اللعبة
   if (
     req.method === 'GET' &&
-    (url.pathname === '/' || url.pathname === '/index.html')
+    (
+      url.pathname === '/' ||
+      url.pathname === '/index.html'
+    )
   ) {
     try {
-      const html = fs.readFileSync(path.join(__dirname, 'index.html'));
+      const html = fs.readFileSync(
+        path.join(__dirname, 'index.html')
+      );
 
       cors(res);
+
       res.writeHead(200, {
         'Content-Type': 'text/html; charset=utf-8'
       });
 
       return res.end(html);
+
     } catch (e) {
-      return send(res, 404, 'index.html not found', 'text/plain');
+      return send(
+        res,
+        404,
+        'index.html not found',
+        'text/plain'
+      );
     }
   }
 
-  send(res, 404, { error: 'not found' });
+  return send(res, 404, {
+    error: 'not found'
+  });
 });
 
 server.listen(PORT, () => {
-  console.log(`مدينة المتابعين تعمل على http://localhost:${PORT}`);
+  console.log(
+    `مدينة المتابعين تعمل على http://localhost:${PORT}`
+  );
 });
