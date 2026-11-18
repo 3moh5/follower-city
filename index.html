@@ -83,7 +83,7 @@ textarea{min-height:76px;resize:vertical}
 <div class="ui" id="ui">
   <header class="top">
     <div class="brand"><b>مدينة المتابعين</b><span id="igname">حساب إنستغرام غير مربوط</span></div>
-    
+
     <div class="counter"><span id="fcount">0</span><small>متابع</small></div>
     <div class="tools">
       <button class="btn" id="btnTheme" type="button">وضع ليلي</button>
@@ -107,7 +107,7 @@ textarea{min-height:76px;resize:vertical}
 
     <div class="pane" data-pane="plot">
       <div class="card"><h4 id="plotTitle">اختر أرضاً من الخريطة</h4><p class="hint" id="plotInfo">اضغط على أي قطعة أرض لتعديلها. اسحب لتحريك الخريطة، وبالزر الأيمن أو بإصبعين لتدويرها.</p></div>
-      
+
       <div class="card" id="plotForm">
         <div class="row">
           <label>نوع المبنى<select id="pType"></select></label>
@@ -168,7 +168,7 @@ textarea{min-height:76px;resize:vertical}
       <div class="card">
         <h4>رفع مبنى ثلاثي الأبعاد</h4>
         <p class="hint">ملفات GLB (يفضّل) أو GLTF مضمّن. بعد الرفع اختر أرضاً، غيّر النوع إلى «نموذج 3D»، ثم اختر النموذج وحرّكه بالإزاحة والتدوير والحجم.</p>
-        <div class="row"><label>اسم النموذج<input type="text" id="mName" autocomplete="off" placeholder="مثال: مسجد الحي"></label></div>
+                <div class="row"><label>اسم النموذج<input type="text" id="mName" autocomplete="off" placeholder="مثال: مسجد الحي"></label></div>
         <input type="file" id="mFile" accept=".glb,.gltf">
         <div class="status" id="mStatus"></div>
       </div>
@@ -212,7 +212,7 @@ textarea{min-height:76px;resize:vertical}
         <p class="hint">اضغط الزر، سجّل الدخول بحسابك الاحترافي ووافق، فيُربط الحساب تلقائياً ويبدأ التحديث.</p>
         <div class="row"><button class="btn pri" id="igConnect" type="button">ربط حسابي بإنستغرام</button></div>
         <div class="status" id="igConnSt"></div>
-        <p class="hint">أضف هذا العنوان في Meta (Instagram ثم API setup ثم Business login settings) داخل «Valid OAuth redirect URIs»:</p>
+        <p class="hint">أضف هذا العنوان في Meta (API setup with Unified login) ضمن عنوان إعادة التوجيه المسجل لهذا التكوين:</p>
         <input type="text" id="igRedir" dir="ltr" readonly>
       </div>
       <div class="card">
@@ -338,7 +338,7 @@ function normU(u){return String(u||'').trim().replace(/^@/,'').toLowerCase().rep
 var newKeys=[];
 function upsert(u,name,extra){u=normU(u);if(!u)return null;var v=S.villagers[u];var isNew=!v;
   if(!v){v=S.villagers[u]={username:u,name:name||u,comments:0,likes:0,bonus:0,since:Date.now(),coins:300}}
-  if(name)v.name=name;if(extra)Object.keys(extra).forEach(function(k){if(extra[k]!==undefined)v[k]=extra[k]});if(extra&&extra.demo===undefined&&!extra.keepDemo)delete v.demo;return{v:v,isNew:isNew}}
+    if(name)v.name=name;if(extra)Object.keys(extra).forEach(function(k){if(extra[k]!==undefined)v[k]=extra[k]});if(extra&&extra.demo===undefined&&!extra.keepDemo)delete v.demo;return{v:v,isNew:isNew}}
 function assignAll(){if(S.cfg.api)return false;var list=Object.keys(S.villagers).map(function(k){return S.villagers[k]}).filter(function(v){return !(v.plot&&S.plots[v.plot]&&S.plots[v.plot].owner===v.username)});
   list.sort(function(a,b){return (a.since-b.since)||(a.username<b.username?-1:1)});var changed=false;
   list.forEach(function(v){var own=Object.keys(S.plots).filter(function(k){return S.plots[k].owner===v.username})[0];
@@ -508,181 +508,11 @@ function makePlot(gx,gy,pop){var key=gx+','+gy,pd=S.plots[key]||null,dd=distOf(g
   var curb=bx(g,mat('#d9d4c8'),P+1,.3,P+1,0,.15,0);curb.userData.ground=1;
   var grass=bx(g,mat(DCOL[dt]),P,.34,P,0,.17,0);grass.castShadow=false;
   var ix=flat(g,ZEBRAMAT,R,R,B/2,.05,B/2);ix.receiveShadow=false;
-  var l1=flat(g,DASHMAT,P,.28,0,.045,B/2);l1.material=DASHMAT;var l2=flat(g,DASHMAT,P,.28,B/2,.045,0);l2.rotation.z=Math.PI/2;
-  lamp(g,P/2-.5,P/2-.5,.8,.8);lamp(g,-P/2+.5,-P/2+.5,-.8,-.8);lamp(g,P/2-.5,0,.8,0);lamp(g,0,P/2-.5,0,.8);
-  var hgt=buildContent(g,key,pd,dt,rn,S.settings.treeD);
-  var nm=plotName(pd);
-  if(nm&&pd.type){var lv=clamp(pd.level||1,1,5);
-    var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTex(nm.n,nm.u,lv),transparent:true,depthTest:false}));sp.position.set((pd.ox||0),hgt+3.4,(pd.oz||0));sp.scale.set(9,2.64,1);sp.renderOrder=10;g.add(sp);g.userData.label=sp;
-    var pl=new THREE.Group();pl.position.set(0,.34,P/2-.8);bx(pl,mat('#5b4630'),.14,1,.14,-1.7,.5,0);bx(pl,mat('#5b4630'),.14,1,.14,1.7,.5,0);
-    var board=M(G.box,new THREE.MeshStandardMaterial({map:plaqueTex(nm.n,nm.u),roughness:.8}),4.2,1.05,.14,0,1.15,0);pl.add(board);g.add(pl)}
-  scene.add(g);plotGroups[key]=g;
-  if(pop){g.scale.y=.01;spawning.push({g:g,t:0})}
-  return g}
-function removePlot(key){var g=plotGroups[key];if(!g)return;scene.remove(g);delete plotGroups[key];spawning=spawning.filter(function(s){return s.g!==g})}
-function refreshPlot(key,pop){var was=!!plotGroups[key];removePlot(key);if(was)makePlot.apply(null,key.split(',').map(Number).concat([pop]))}
-function refreshAll(){Object.keys(plotGroups).forEach(function(k){refreshPlot(k)})}
-var wcx=1e9,wcy=1e9;
-function updateWorld(force){var t=controls.target,cx=Math.round(t.x/B),cy=Math.round(t.z/B);if(!force&&cx===wcx&&cy===wcy)return;wcx=cx;wcy=cy;ground.position.set(cx*B+B/2,0,cy*B+B/2);
-  for(var gx=cx-RAD;gx<=cx+RAD;gx++)for(var gy=cy-RAD;gy<=cy+RAD;gy++){if(!plotGroups[gx+','+gy])makePlot(gx,gy,false)}
-  Object.keys(plotGroups).forEach(function(k){var a=k.split(',');if(Math.abs(a[0]-cx)>RAD+1||Math.abs(a[1]-cy)>RAD+1)removePlot(k)});
-  rebuildOverlay()}
-
-/* district overlay */
-var ovl=new THREE.Group();scene.add(ovl);
-function dTex(name,type){return canvasTex(512,128,function(c,w,h){c.fillStyle='rgba(16,30,24,.8)';c.fillRect(0,0,w,h);c.strokeStyle=DCOL[type];c.lineWidth=8;c.strokeRect(4,4,w-8,h-8);c.textAlign='center';c.textBaseline='middle';c.fillStyle='#fff';c.font='800 54px '+fontStack();c.fillText(name,w/2,50);c.fillStyle=DCOL[type];c.font='500 32px '+fontStack();c.fillText('حي '+DTYPES[type],w/2,96)})}
-function rebuildOverlay(){while(ovl.children.length)ovl.remove(ovl.children[0]);if(!S.settings.overlay)return;var cd=distOf(wcx,wcy);
-  for(var dx=cd[0]-2;dx<=cd[0]+2;dx++)for(var dy=cd[1]-2;dy<=cd[1]+2;dy++){var d=district(dx,dy),x0=(dx*DIST-.5)*B,x1=((dx+1)*DIST-.5)*B,z0=(dy*DIST-.5)*B,z1=((dy+1)*DIST-.5)*B,col=basic(DCOL[d.type],{transparent:true,opacity:.9});
-    [[(x0+x1)/2,z0,x1-x0,.7],[(x0+x1)/2,z1,x1-x0,.7],[x0,(z0+z1)/2,.7,z1-z0],[x1,(z0+z1)/2,.7,z1-z0]].forEach(function(s){var f=flat(ovl,col,s[2],s[3],s[0],.12,s[1]);f.receiveShadow=false});
-    var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:dTex(d.name,d.type),transparent:true,depthTest:false}));sp.position.set((x0+x1)/2,2,(z0+z1)/2);sp.scale.set(30,7.5,1);sp.renderOrder=11;ovl.add(sp)}}
-
-/* selection outline */
-var outline=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(P+1.4,.6,P+1.4)),new THREE.LineBasicMaterial({color:0xffd24a}));outline.visible=false;scene.add(outline);
-var selKey=null,moveFrom=null,selCar=null;
-function selectPlot(key){selKey=key;if(!key){outline.visible=false;return}var a=key.split(',').map(Number);outline.position.set(a[0]*B,.4,a[1]*B);outline.visible=true;showPlot()}
-
-/* ---------- people ---------- */
-var walkers=[],cars=[];
-var DIRS=[[1,0],[0,1],[-1,0],[0,-1]];
-var EMO=['👋','🤝','💬','😊','🧰','🍎'];
-var emoTex={};function emoSprite(e){if(!emoTex[e])emoTex[e]=canvasTex(96,96,function(c,w,h){c.fillStyle='rgba(255,255,255,.95)';c.beginPath();c.arc(w/2,h/2,44,0,7);c.fill();c.font='52px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(e,w/2,h/2+4)});return emoTex[e]}
-function rsign(){return Math.random()<.5?-1:1}
-function cornerPos(c){return[c.gx*B+c.cx*7.3,c.gy*B+c.cy*7.3]}
-function nearCell(){var t=controls.target;return[Math.round(t.x/B)+Math.floor(Math.random()*9)-4,Math.round(t.z/B)+Math.floor(Math.random()*9)-4]}
-function newWalker(){var o=nearCell(),shirt=['#e0533d','#3d7de0','#f2b134','#2fa36b','#8e5de0','#e0e0e0'][Math.floor(Math.random()*6)];
-  var w={c:{gx:o[0],gy:o[1],cx:rsign(),cy:rsign()},path:[],pause:0,cool:Math.random()*4,hide:0,speed:1.1+Math.random()*.7,phase:Math.random()*6,mesh:buildPerson(shirt),yaw:0};
-  var p=cornerPos(w.c);w.x=p[0];w.z=p[1];w.mesh.userData.walker=w;
-  var b=new THREE.Sprite(new THREE.SpriteMaterial({map:emoSprite('👋'),transparent:true,depthTest:false}));b.scale.set(1.5,1.5,1);b.position.y=3;b.visible=false;b.renderOrder=12;w.mesh.add(b);w.bub=b;
-  scene.add(w.mesh);pickNext(w);return w}
-function pickNext(w){var c=w.c,opts=[{gx:c.gx,gy:c.gy,cx:-c.cx,cy:c.cy},{gx:c.gx,gy:c.gy,cx:c.cx,cy:-c.cy},{gx:c.gx+c.cx,gy:c.gy,cx:-c.cx,cy:c.cy},{gx:c.gx,gy:c.gy+c.cy,cx:c.cx,cy:-c.cy}];
-  var ks=function(o){return o.gx+','+o.gy+','+o.cx+','+o.cy};var f=opts.filter(function(o){return ks(o)!==w.prev});var n=f[Math.floor(Math.random()*f.length)];w.prev=ks(c);w.c=n;var cp=cornerPos(c);w.path=[{x:cp[0],z:cp[1]}];var np=cornerPos(n);w.path.push({x:np[0],z:np[1],arrive:1})}
-function arrived(w){var pd=S.plots[w.c.gx+','+w.c.gy];if(w.c.cy===1&&pd&&pd.type&&pd.type!=='park'&&Math.random()<.14){var px=w.c.gx*B,pz=w.c.gy*B;var q=[{x:px,z:pz+7.3},{x:px,z:pz+3.4,hide:3.5},{x:px,z:pz+7.3}];var cp=cornerPos(w.c);q.push({x:cp[0],z:cp[1]});w.path=q;w.afterVisit=true}else pickNext(w)}
-function stepWalker(w,dt,spd){if(w.hide>0){w.hide-=dt;w.mesh.visible=w.hide<=0;if(w.hide<=0){w.mesh.visible=true}return}
-  if(w.pause>0){w.pause-=dt;if(w.pause<=0)w.bub.visible=false;w.phase+=0;return}
-  w.cool-=dt;var tgt=w.path[0];if(!tgt){pickNext(w);return}
-  var dx=tgt.x-w.x,dz=tgt.z-w.z,d=Math.hypot(dx,dz),st=w.speed*spd*dt;
-  if(d<=st){w.x=tgt.x;w.z=tgt.z;w.path.shift();if(tgt.hide){w.hide=tgt.hide;w.mesh.visible=false}if(!w.path.length){if(w.afterVisit){w.afterVisit=false;pickNext(w)}else arrived(w)}}
-  else{w.x+=dx/d*st;w.z+=dz/d*st;var ty=Math.atan2(dx,dz),df=Math.atan2(Math.sin(ty-w.yaw),Math.cos(ty-w.yaw));w.yaw+=df*Math.min(1,dt*8);w.phase+=dt*8*spd}
-  w.mesh.position.set(w.x,.33,w.z);w.mesh.rotation.y=w.yaw;var lg=w.mesh.userData.legs;lg[0].rotation.x=Math.sin(w.phase)*.6;lg[1].rotation.x=-Math.sin(w.phase)*.6}
-function newCar(){var o=nearCell(),kinds=['sedan','sedan','suv','van','pickup'];var col=S.settings.carMode==='single'?S.settings.carColor:CARCOLS[Math.floor(Math.random()*CARCOLS.length)];
-  var c={i:o[0],j:o[1],d:Math.floor(Math.random()*4),t:Math.random(),speedMul:.8+Math.random()*.5,color:col,kind:kinds[Math.floor(Math.random()*kinds.length)],yaw:0,pr:null};
-  c.pr=rightOf(c.d);c.mesh=buildCarMesh(c.color,c.kind);c.mesh.userData.car=c;scene.add(c.mesh);return c}
-function rightOf(d){return[-DIRS[d][1],DIRS[d][0]]}
-function stepCar(c,dt,spd){var v=11*c.speedMul*spd;c.t+=v*dt/B;
-  if(c.t>=1){c.t-=1;c.i+=DIRS[c.d][0];c.j+=DIRS[c.d][1];c.pr=rightOf(c.d);var r=Math.random();c.d=r<.6?c.d:r<.8?(c.d+1)%4:(c.d+3)%4}
-  var dir=DIRS[c.d],rt=rightOf(c.d),k=clamp(c.t*B/5,0,1),ox=(c.pr[0]*(1-k)+rt[0]*k)*1.5,oz=(c.pr[1]*(1-k)+rt[1]*k)*1.5;
-  var x=(c.i+.5)*B+dir[0]*c.t*B+ox,z=(c.j+.5)*B+dir[1]*c.t*B+oz;
-  var ty=Math.atan2(dir[0],dir[1]),df=Math.atan2(Math.sin(ty-c.yaw),Math.cos(ty-c.yaw));c.yaw+=df*Math.min(1,dt*6);c.mesh.position.set(x,0,z);c.mesh.rotation.y=c.yaw}
-function syncPeople(){var s=S.settings,wn=s.walkers?s.walkerCount:0;while(walkers.length<wn)walkers.push(newWalker());while(walkers.length>wn){var w=walkers.pop();scene.remove(w.mesh)}
-  while(cars.length<s.carCount)cars.push(newCar());while(cars.length>s.carCount){var c=cars.pop();scene.remove(c.mesh);if(selCar===c)selectCar(null)}}
-function recolorCars(){cars.forEach(function(c){c.color=S.settings.carMode==='single'?S.settings.carColor:CARCOLS[Math.floor(Math.random()*CARCOLS.length)];rebuildCar(c)})}
-function rebuildCar(c){var p=c.mesh.position,ry=c.mesh.rotation.y;scene.remove(c.mesh);c.mesh=buildCarMesh(c.color,c.kind);c.mesh.userData.car=c;c.mesh.position.copy(p);c.mesh.rotation.y=ry;scene.add(c.mesh)}
-function respawnFar(){var t=controls.target;walkers.forEach(function(w){if(Math.hypot(w.x-t.x,w.z-t.z)>110){var o=nearCell();w.c={gx:o[0],gy:o[1],cx:rsign(),cy:rsign()};var p=cornerPos(w.c);w.x=p[0];w.z=p[1];w.prev=null;w.hide=0;w.mesh.visible=true;pickNext(w)}});
-  cars.forEach(function(c){if(Math.hypot((c.i+.5)*B-t.x,(c.j+.5)*B-t.z)>115){var o=nearCell();c.i=o[0];c.j=o[1];c.t=Math.random()}})}
-function meetings(){for(var a=0;a<walkers.length;a++){var A=walkers[a];if(A.hide>0||A.pause>0||A.cool>0)continue;for(var b=a+1;b<walkers.length;b++){var Bw=walkers[b];if(Bw.hide>0||Bw.pause>0||Bw.cool>0)continue;if(Math.hypot(A.x-Bw.x,A.z-Bw.z)<1.5){var e=EMO[Math.floor(Math.random()*EMO.length)],t=2.5+Math.random()*2;[A,Bw].forEach(function(w){w.pause=t;w.cool=9;w.bub.material.map=emoSprite(e);w.bub.visible=true});A.yaw=Math.atan2(Bw.x-A.x,Bw.z-A.z);Bw.yaw=A.yaw+Math.PI;A.mesh.rotation.y=A.yaw;Bw.mesh.rotation.y=Bw.yaw;break}}}}
-
-/* ---------- day / night ---------- */
-function applyTheme(){var n=S.settings.night;var bg=new THREE.Color(n?'#0b1530':'#a4d6f4');scene.background=bg;scene.fog=new THREE.Fog(bg,170,380);
-  hemi.color.set(n?'#6a82d6':'#ffffff');hemi.groundColor.set(n?'#1d2c3c':'#8fbf70');hemi.intensity=n?.55:.95;sun.color.set(n?'#8fa8ff':'#fff1d6');sun.intensity=n?.5:1.15;
-  NIGHT.forEach(function(a){a[0].emissiveIntensity=n?a[2]:a[1]});el('btnTheme').textContent=n?'وضع نهاري':'وضع ليلي';}
-
-/* ---------- picking ---------- */
-var ray=new THREE.Raycaster(),mouse=new THREE.Vector2(),down=null;
-canvas.addEventListener('pointerdown',function(e){down={x:e.clientX,y:e.clientY,t:Date.now()}});
-canvas.addEventListener('pointerup',function(e){if(!down)return;var moved=Math.hypot(e.clientX-down.x,e.clientY-down.y),dt=Date.now()-down.t;down=null;if(moved>6||dt>600||e.button!==0)return;pick(e.clientX,e.clientY)});
-function pick(cx,cy){var r=canvas.getBoundingClientRect();mouse.set(((cx-r.left)/r.width)*2-1,-((cy-r.top)/r.height)*2+1);ray.setFromCamera(mouse,camera);
-  var roots=Object.keys(plotGroups).map(function(k){return plotGroups[k]}).concat(cars.map(function(c){return c.mesh}));var hits=ray.intersectObjects(roots,true);
-  for(var i=0;i<hits.length;i++){var o=hits[i].object;if(o.isSprite&&false)continue;while(o&&!(o.userData&&(o.userData.pk||o.userData.car)))o=o.parent;if(!o)continue;
-    if(o.userData.car){if(adminOn())selectCar(o.userData.car);return}
-    var key=o.userData.pk;if(moveFrom){doMove(moveFrom,key);return}selectPlot(key);if(adminOn())openPanel('plot');else viewInfo(key);return}
-  selectPlot(null)}
-function viewInfo(key){var pd=S.plots[key];var nm=plotName(pd);if(pd&&pd.type&&nm){toast((nm.u?nm.n+' (@'+nm.u+')':nm.n)+' • المستوى '+(pd.level||1)+' • '+(TYPES[pd.type]||''))}else toast('أرض متاحة في القرية')}
-function selectCar(c){selCar=c;var ed=el('carEd');if(!c){ed.hidden=true;return}ed.hidden=false;el('ceColor').value=c.color;el('ceKind').value=c.kind;el('ceSpeed').value=c.speedMul;openPanel('life')}
-function doMove(a,b){moveFrom=null;el('pMove').classList.remove('on');el('pMove').textContent='نقل المبنى لأرض أخرى';if(a===b)return;var pa=S.plots[a],pb=S.plots[b];if(!pa){toast('لا يوجد مبنى للنقل');return}
-  if(pb)S.plots[a]=pb;else delete S.plots[a];S.plots[b]=pa;[a,b].forEach(function(k){var p=S.plots[k];if(p&&p.owner&&S.villagers[p.owner])S.villagers[p.owner].plot=k});refreshPlot(a);refreshPlot(b);selectPlot(b);save();renderBoard();toast(pb?'تم تبديل المبنيين':'تم نقل المبنى')}
-
-/* ---------- fly ---------- */
-var tween=null;
-function flyTo(key){var a=key.split(',').map(Number),tx=a[0]*B,tz=a[1]*B;var off=camera.position.clone().sub(controls.target);off.setLength(Math.min(off.length(),70));tween={t:0,from:controls.target.clone(),to:new THREE.Vector3(tx,0,tz),offFrom:camera.position.clone().sub(controls.target),offTo:off};selectPlot(key)}
-
-/* ---------- UI: panel ---------- */
-function openPanel(name){el('panel').hidden=false;el('ui').classList.remove('showboard');$$('.tab').forEach(function(t){t.setAttribute('aria-selected',t.dataset.pane===name?'true':'false')});$$('.pane').forEach(function(p){p.classList.toggle('show',p.dataset.pane===name)})}
-$$('.tab').forEach(function(t){t.addEventListener('click',function(){openPanel(t.dataset.pane)})});
-el('btnPanel').addEventListener('click',function(){if(el('panel').hidden)openPanel('plot');else el('panel').hidden=true});
-el('btnBoard').addEventListener('click',function(){el('ui').classList.toggle('showboard')});
-el('btnTheme').addEventListener('click',function(){S.settings.night=!S.settings.night;applyTheme();save()});
-function opts(sel,map,cur){sel.innerHTML=Object.keys(map).map(function(k){return '<option value="'+k+'"'+(k===cur?' selected':'')+'>'+esc(map[k])+'</option>'}).join('')}
-var typeMap=Object.assign({'':'أرض فارغة'},TYPES);opts(el('pType'),typeMap,'');opts(el('dType'),DTYPES,'residential');
-
-function canEdit(){if(!adminOn()){toast('التعديل للمدير فقط. سجّل الدخول أولاً');return false}return true}
-function showPlot(){var key=selKey;if(!key)return;var a=key.split(',').map(Number),dd=distOf(a[0],a[1]),dist=district(dd[0],dd[1]),pd=S.plots[key];
-  el('plotTitle').textContent='الأرض '+key.replace(',','، ')+' في '+dist.name;
-  var info=[];info.push('نوع الحي: '+DTYPES[dist.type]);if(pd&&pd.owner){var v=S.villagers[pd.owner];info.push('المالك: @'+pd.owner+(v?' ('+points(v)+' نقطة، '+(v.coins||0)+' عملة)':''))}else info.push('الأرض متاحة للشراء بسعر '+COST.land+' عملة');
-  el('plotInfo').textContent=info.join(' • ');
-  el('pType').value=pd&&pd.type?pd.type:'';el('pLevel').value=pd?pd.level||1:1;el('pOwner').value=pd&&pd.owner||'';el('pLabel').value=pd&&pd.label||'';el('pOx').value=pd&&pd.ox||0;el('pOz').value=pd&&pd.oz||0;el('pScale').value=pd&&pd.scale||1;
-  el('pRoof').value=pd&&pd.roof||ROOFS[hash(pd&&pd.owner||key)%ROOFS.length];el('pAuto').classList.toggle('on',!pd||pd.auto!==false);
-  el('pModelRow').hidden=!(pd&&pd.type==='model');fillModels(pd&&pd.modelId);
-  el('buyCard').hidden=!!(pd&&pd.owner);el('buyHint').textContent='يخصم السعر من رصيد المشتري. المدير يشتري ويبني دون خصم.';
-  var dsel=el('dSel');dsel.value=dkey(dd[0],dd[1])}
-function fillModels(cur){var s=el('pModel');s.innerHTML=S.models.length?S.models.map(function(m){return '<option value="'+esc(m.id)+'"'+(m.id===cur?' selected':'')+'>'+esc(m.name)+'</option>'}).join(''):'<option value="">لا توجد نماذج مرفوعة</option>'}
-function applyPlot(){if(!selKey||!canEdit())return;var type=el('pType').value;var pd=S.plots[selKey];
-  if(!type&&!el('pOwner').value&&pd){delete S.plots[selKey]}
-  else{pd=S.plots[selKey]=pd||{rot:0,ox:0,oz:0,scale:1,auto:true,level:1};
-    pd.type=type||null;pd.owner=normU(el('pOwner').value)||null;var lv=+el('pLevel').value;if(lv!==pd.level){pd.level=lv;if(pd.owner&&S.villagers[pd.owner])pd.auto=false}
-    pd.label=el('pLabel').value.trim();pd.ox=+el('pOx').value;pd.oz=+el('pOz').value;pd.scale=+el('pScale').value;pd.roof=el('pRoof').dataset.touched?el('pRoof').value:pd.roof;
-    if(type==='model')pd.modelId=el('pModel').value||pd.modelId;
-    if(pd.owner&&!S.villagers[pd.owner]){upsert(pd.owner,pd.owner);S.villagers[pd.owner].plot=selKey}else if(pd.owner)S.villagers[pd.owner].plot=selKey}
-  refreshPlot(selKey);showPlot();save();renderBoard()}
-['pType','pLevel','pOwner','pLabel','pOx','pOz','pScale','pModel'].forEach(function(id){el(id).addEventListener('change',applyPlot)});
-['pOx','pOz','pScale'].forEach(function(id){el(id).addEventListener('input',function(){if(!selKey||!S.plots[selKey]||!adminOn())return;var p=S.plots[selKey];p.ox=+el('pOx').value;p.oz=+el('pOz').value;p.scale=+el('pScale').value;refreshPlot(selKey);save()})});
-el('pRoof').addEventListener('input',function(){el('pRoof').dataset.touched=1;if(canEdit()&&selKey&&S.plots[selKey]){S.plots[selKey].roof=el('pRoof').value;refreshPlot(selKey);save()}});
-el('pRotL').addEventListener('click',function(){rot(-1)});el('pRotR').addEventListener('click',function(){rot(1)});
-function rot(d){if(!selKey||!S.plots[selKey]||!canEdit())return;var p=S.plots[selKey];p.rot=((p.rot||0)+d+4)%4;refreshPlot(selKey);save()}
-el('pAuto').addEventListener('click',function(){if(!selKey||!S.plots[selKey]||!canEdit())return;var p=S.plots[selKey];p.auto=p.auto===false;if(p.auto)syncLevels();refreshPlot(selKey);showPlot();save()});
-el('pClear').addEventListener('click',function(){if(!selKey||!canEdit())return;var p=S.plots[selKey];if(p&&p.owner&&S.villagers[p.owner])delete S.villagers[p.owner].plot;delete S.plots[selKey];refreshPlot(selKey);showPlot();save();renderBoard()});
-el('pMove').addEventListener('click',function(){if(!selKey||!S.plots[selKey]){toast('اختر أرضاً عليها مبنى أولاً');return}if(!canEdit())return;if(moveFrom){moveFrom=null;el('pMove').classList.remove('on');el('pMove').textContent='نقل المبنى لأرض أخرى';return}moveFrom=selKey;el('pMove').classList.add('on');el('pMove').textContent='اضغط على الأرض الجديدة (إلغاء)'});
-el('pBuy').addEventListener('click',function(){if(!selKey)return;var pd=S.plots[selKey];if(pd&&pd.owner){toast('الأرض مملوكة');return}var u=normU(el('buyer').value);if(!u){toast('اكتب اسم المشتري');return}
-  var r=upsert(u,u);var v=r.v;if(!adminOn()){if((v.coins||0)<COST.land){toast('رصيد المشتري غير كافٍ');return}v.coins-=COST.land}
-  S.plots[selKey]={type:null,owner:u,level:1,rot:0,ox:0,oz:0,scale:1,auto:true};refreshPlot(selKey);showPlot();save();renderBoard();toast('تم شراء الأرض لـ @'+u+'. اختر نوع المبنى الآن')});
-
-/* districts */
-function fillDistricts(){var s=el('dSel'),cd=distOf(wcx===1e9?0:wcx,wcy===1e9?0:wcy),o='';for(var dx=cd[0]-2;dx<=cd[0]+2;dx++)for(var dy=cd[1]-2;dy<=cd[1]+2;dy++){var d=district(dx,dy);o+='<option value="'+dkey(dx,dy)+'">'+esc(d.name)+' ('+DTYPES[d.type]+')</option>'}s.innerHTML=o;s.value=dkey(cd[0],cd[1]);fillDForm()}
-function fillDForm(){var a=el('dSel').value.split(',').map(Number),d=district(a[0],a[1]);el('dName').value=d.name;el('dType').value=d.type}
-el('dSel').addEventListener('change',fillDForm);
-el('dApply').addEventListener('click',function(){if(!canEdit())return;var a=el('dSel').value.split(',').map(Number);S.districts[el('dSel').value]={name:el('dName').value.trim()||district(a[0],a[1]).name,type:el('dType').value};refreshAll();rebuildOverlay();save();fillDistricts();toast('تم حفظ الحي')});
-el('dGo').addEventListener('click',function(){var a=el('dSel').value.split(',').map(Number);flyTo((a[0]*DIST+1)+','+(a[1]*DIST+1))});
-el('dOvl').addEventListener('change',function(){S.settings.overlay=el('dOvl').checked;rebuildOverlay();save()});
-el('tabs').addEventListener('click',function(e){if(e.target.dataset&&e.target.dataset.pane==='dist')fillDistricts()});
-
-
-/* models */
-function loadModelBuffer(id,buf){return new Promise(function(res){try{new THREE.GLTFLoader().parse(buf,'',function(gl){var box=new THREE.Box3().setFromObject(gl.scene),size=box.getSize(new THREE.Vector3()),ctr=box.getCenter(new THREE.Vector3());modelCache[id]={scene:gl.scene,size:size,center:ctr,min:box.min.clone()};res(true)},function(){res(false)})}catch(e){res(false)}})}
-function renderModels(){var l=el('mList');l.innerHTML=S.models.length?'':'<p class="hint">لم ترفع نماذج بعد.</p>';S.models.forEach(function(m){var d=document.createElement('div');d.className='row';d.innerHTML='<span class="nm" style="flex:1">'+esc(m.name)+'</span>';var b=document.createElement('button');b.className='btn bad';b.type='button';b.textContent='حذف';b.addEventListener('click',function(){S.models=S.models.filter(function(x){return x.id!==m.id});delete modelCache[m.id];DB.del('model:'+m.id).catch(function(){});if(S.cfg.api&&authed)fetch(S.cfg.api+'/api/model/delete?id='+encodeURIComponent(m.id),{method:'POST',headers:{'x-admin-key':S.cfg.key}}).catch(function(){});Object.keys(S.plots).forEach(function(k){if(S.plots[k].modelId===m.id){S.plots[k].type=null;refreshPlot(k)}});renderModels();save()});d.appendChild(b);l.appendChild(d)})}
-el('mFile').addEventListener('change',function(){var f=this.files[0];if(!f)return;var st=el('mStatus');st.className='status';st.textContent='جارٍ قراءة الملف...';f.arrayBuffer().then(function(buf){var id='m'+Date.now().toString(36);var nm=el('mName').value.trim()||f.name.replace(/\.[^.]+$/,'');return loadModelBuffer(id,buf).then(function(ok){if(!ok){st.className='status bad';st.textContent='تعذر قراءة الملف. استخدم GLB سليماً.';return}if(S.cfg.api&&authed){return fetch(S.cfg.api+'/api/model?name='+encodeURIComponent(nm),{method:'POST',headers:{'x-admin-key':S.cfg.key},body:buf}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){modelCache[j.id]=modelCache[id];delete modelCache[id];S.models.push({id:j.id,name:nm});st.className='status ok';st.textContent='تم رفع النموذج إلى الخادم ليراه الجميع.';el('mName').value='';renderModels();fillModels();save()}).catch(function(){delete modelCache[id];st.className='status bad';st.textContent='فشل رفع النموذج إلى الخادم (الحد 40 ميغابايت).'})}S.models.push({id:id,name:nm});DB.put('model:'+id,buf).catch(function(){st.textContent='تم الرفع لكن لن يُحفظ بعد إغلاق الصفحة (التخزين غير متاح).'});if(st.textContent.indexOf('لن يُحفظ')<0){st.className='status ok';st.textContent='تم رفع النموذج.'}el('mName').value='';renderModels();fillModels();save()})});this.value=''});
-
-/* life */
-function bindRange(id,key,out,fn){var e=el(id);e.value=S.settings[key];if(out)el(out).textContent=S.settings[key];e.addEventListener('input',function(){S.settings[key]=+e.value;if(out)el(out).textContent=e.value;if(fn)fn();save()})}
-el('wOn').checked=S.settings.walkers;el('wOn').addEventListener('change',function(){S.settings.walkers=el('wOn').checked;syncPeople();save()});
-bindRange('wCount','walkerCount','wCountV',syncPeople);bindRange('wSpeed','walkerSpeed');bindRange('cCount','carCount','cCountV',syncPeople);bindRange('cSpeed','carSpeed');
-el('cMode').value=S.settings.carMode;el('cColor').value=S.settings.carColor;
-el('cMode').addEventListener('change',function(){S.settings.carMode=el('cMode').value;recolorCars();save()});el('cColor').addEventListener('input',function(){S.settings.carColor=el('cColor').value;if(S.settings.carMode==='single')recolorCars();save()});
-el('ceColor').addEventListener('input',function(){if(selCar){selCar.color=el('ceColor').value;rebuildCar(selCar)}});el('ceKind').addEventListener('change',function(){if(selCar){selCar.kind=el('ceKind').value;rebuildCar(selCar)}});el('ceSpeed').addEventListener('input',function(){if(selCar)selCar.speedMul=+el('ceSpeed').value});
-el('ceDel').addEventListener('click',function(){if(!selCar)return;var i=cars.indexOf(selCar);if(i>=0){scene.remove(selCar.mesh);cars.splice(i,1);S.settings.carCount=cars.length;el('cCount').value=cars.length;el('cCountV').textContent=cars.length;save()}selectCar(null)});
-
-/* settings */
-el('lblOn').checked=S.settings.labels;el('lblOn').addEventListener('change',function(){S.settings.labels=el('lblOn').checked;save()});
-el('shadowOn').checked=S.settings.shadows;el('shadowOn').addEventListener('change',function(){S.settings.shadows=el('shadowOn').checked;renderer.shadowMap.enabled=S.settings.shadows;sun.castShadow=S.settings.shadows;Object.keys(matCache).forEach(function(k){matCache[k].needsUpdate=true});save()});
-el('treeD').value=S.settings.treeD;el('treeD').addEventListener('change',function(){S.settings.treeD=+el('treeD').value;refreshAll();save()});
-el('dOvl').checked=S.settings.overlay;
-function setFont(name){S.settings.font=name;document.documentElement.style.setProperty('--ui',name?"'UserFont','Cairo',system-ui,sans-serif":"'Cairo',system-ui,sans-serif");labelCache={};refreshAll();rebuildOverlay()}
-function loadFont(buf){return new FontFace('UserFont',buf).load().then(function(f){document.fonts.add(f);return true}).catch(function(){return false})}
-el('fontFile').addEventListener('change',function(){var f=this.files[0];if(!f)return;f.arrayBuffer().then(function(buf){loadFont(buf).then(function(ok){if(!ok){toast('تعذر قراءة ملف الخط');return}DB.put('font',buf).catch(function(){});setFont('UserFont');save();toast('تم تطبيق الخط')})});this.value=''});
-el('fontReset').addEventListener('click',function(){DB.del('font').catch(function(){});setFont('');save()});
-var resetArmed=false;el('reset').addEventListener('click',function(){if(!resetArmed){resetArmed=true;el('resetHint').textContent='اضغط مرة أخرى خلال 5 ثوان لتأكيد المسح الكامل.';setTimeout(function(){resetArmed=false;el('resetHint').textContent=''},5000);return}
+  var resetArmed=false;el('reset').addEventListener('click',function(){if(!resetArmed){resetArmed=true;el('resetHint').textContent='اضغط مرة أخرى خلال 5 ثوان لتأكيد المسح الكامل.';setTimeout(function(){resetArmed=false;el('resetHint').textContent=''},5000);return}
   var cfg=S.cfg,st=S.settings;S=fresh();S.cfg=cfg;S.settings=st;S.seeded=true;try{localStorage.removeItem(LS)}catch(e){}refreshAll();renderBoard();save();el('resetHint').textContent='تم مسح القرية.';resetArmed=false});
 
 /* link / data */
-function renderCfg(){el('igUser').value=S.igUser||'';el('apiUrl').value=S.cfg.api||'';el('apiKey').value=S.cfg.key||'';el('igname').textContent=S.igUser?'@'+S.igUser:'حساب إنستغرام غير مربوط'}
+function renderCfg(){el('igUser').value=S.igUser||'';el('apiUrl').value=S.cfg.api||'';el('apiKey').value=S.cfg.key||'';el('igname').textContent=S.igUser?'@'+S.igUser:'حساب إنستغرام غير مربوط';try{el('igRedir').value=(S.cfg.api||location.origin)+'/auth/instagram/callback'}catch(e){}}
 function stat(msg,cls){var s=el('apiStatus');s.textContent=msg;s.className='status '+(cls||'')}
 el('apiSave').addEventListener('click',function(){S.igUser=normU(el('igUser').value);S.cfg.api=el('apiUrl').value.trim().replace(/\/$/,'');S.cfg.key=el('apiKey').value;renderCfg();save();if(S.cfg.api&&S.cfg.key)verifyKey(S.cfg.key).then(function(ok){authed=ok;applyMode();if(!ok)stat('مفتاح المدير غير صحيح.','bad');else poll(true)}).catch(function(){stat('تعذر الاتصال بالخادم.','bad')});else{applyMode();poll(true)}});
 function addVillager(u,name,extra){var r=upsert(u,name,extra);if(!r)return null;if(r.isNew)S.followers=Math.max(S.followers,Object.keys(S.villagers).length);return r}
@@ -699,11 +529,31 @@ el('exp').addEventListener('click',function(){var t=JSON.stringify({plots:S.plot
 el('imp').addEventListener('click',function(){try{var j=JSON.parse(el('io').value);if(!j.plots)throw 0;S.plots=j.plots;S.districts=j.districts||{};S.villagers=j.villagers||{};S.followers=Object.keys(S.villagers).length;refreshAll();rebuildOverlay();renderBoard();save();toast('تم استيراد القرية')}catch(e){toast('النص غير صالح')}});
 
 /* live server */
-function schedulePush(){if(!S.cfg.api||!S.cfg.key||!authed)return;clearTimeout(pushT);pushT=setTimeout(function(){fetch(S.cfg.api+'/api/layout',{method:'POST',headers:{'Content-Type':'application/json','x-admin-key':S.cfg.key},body:JSON.stringify({plots:S.plots,districts:S.districts,villagers:Object.keys(S.villagers).reduce(function(o,k){o[k]={plot:S.villagers[k].plot,levelLock:S.villagers[k].levelLock,bonus:S.villagers[k].bonus,coins:S.villagers[k].coins};return o},{})})}).catch(function(){})},1500)}
+function schedulePush(){if(!S.cfg.api||!S.cfg.key||!authed)return;clearTimeout(pushT);pushT=setTimeout(function(){fetch(S.cfg.api+'/api/layout',{method:'POST',headers:{'Content-Type':'application/json','x-admin-key':S.cfg.key},body:JSON.stringify({plots:S.plots,districts:S.districts,lifeSettings:{walkers:S.settings.walkers,walkerCount:S.settings.walkerCount,walkerSpeed:S.settings.walkerSpeed,carCount:S.settings.carCount,carSpeed:S.settings.carSpeed,carMode:S.settings.carMode,carColor:S.settings.carColor},villagers:Object.keys(S.villagers).reduce(function(o,k){o[k]={plot:S.villagers[k].plot,levelLock:S.villagers[k].levelLock,bonus:S.villagers[k].bonus,coins:S.villagers[k].coins};return o},{})})}).catch(function(){})},1500)}
 var polling=false;
 function poll(manual){if(!S.cfg.api)return;if(polling)return;polling=true;
   (manual&&S.cfg.key?fetch(S.cfg.api+'/api/refresh',{method:'POST',headers:{'x-admin-key':S.cfg.key}}).catch(function(){}):Promise.resolve()).then(function(){return fetch(S.cfg.api+'/api/state',{cache:'no-store'})}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()}).then(function(j){mergeServer(j);if(j.error)stat('متصل بالخادم لكن إنستغرام لم يعطِ البيانات: '+j.error,'bad');else if(!j.hasToken)stat('لم يُربط حساب إنستغرام بعد. اضغط «ربط حسابي بإنستغرام».','bad');else stat('متصل. آخر تحديث '+new Date().toLocaleTimeString('ar')+' • السكان من إنستغرام: '+(j.villagers||[]).length,'ok')}).catch(function(){stat('تعذر الاتصال بالخادم. تأكد من العنوان وتشغيل server.js.','bad');if(manual)toast('تعذر الاتصال بالخادم')}).then(function(){polling=false})}
 function mergeServer(j){var isAdmin=adminOn(),rebuilt=false;srvInfo={hasToken:j.hasToken,canConnect:j.canConnect,igUser:j.igUser,error:j.error};updateConnectUI();
+  if(j.lifeSettings){var ls=j.lifeSettings;var oldMode=S.settings.carMode,oldColor=S.settings.carColor;
+    if(typeof ls.walkers==='boolean')S.settings.walkers=ls.walkers;
+    if(Number.isFinite(Number(ls.walkerCount)))S.settings.walkerCount=Number(ls.walkerCount);
+    if(Number.isFinite(Number(ls.walkerSpeed)))S.settings.walkerSpeed=Number(ls.walkerSpeed);
+    if(Number.isFinite(Number(ls.carCount)))S.settings.carCount=Number(ls.carCount);
+    if(Number.isFinite(Number(ls.carSpeed)))S.settings.carSpeed=Number(ls.carSpeed);
+    if(ls.carMode==='mixed'||ls.carMode==='single')S.settings.carMode=ls.carMode;
+    if(typeof ls.carColor==='string'&&/^#[0-9a-fA-F]{6}$/.test(ls.carColor))S.settings.carColor=ls.carColor;
+    syncPeople();
+    if(oldMode!==S.settings.carMode||oldColor!==S.settings.carColor)recolorCars();
+    if(el('wOn'))el('wOn').checked=S.settings.walkers;
+    if(el('wCount'))el('wCount').value=S.settings.walkerCount;
+    if(el('wCountV'))el('wCountV').textContent=S.settings.walkerCount;
+    if(el('wSpeed'))el('wSpeed').value=S.settings.walkerSpeed;
+    if(el('cCount'))el('cCount').value=S.settings.carCount;
+    if(el('cCountV'))el('cCountV').textContent=S.settings.carCount;
+    if(el('cSpeed'))el('cSpeed').value=S.settings.carSpeed;
+    if(el('cMode'))el('cMode').value=S.settings.carMode;
+    if(el('cColor'))el('cColor').value=S.settings.carColor;
+  }
   if((j.villagers||[]).length){var had=false;Object.keys(S.villagers).forEach(function(u){if(S.villagers[u].demo){had=true;Object.keys(S.plots).forEach(function(k){if(S.plots[k].owner===u)delete S.plots[k]});delete S.villagers[u]}});if(had)rebuilt=true}
   var sig0=JSON.stringify(S.plots)+JSON.stringify(S.districts);
   if(!isAdmin){S.plots=(j.layout&&j.layout.plots)||{};S.districts=(j.layout&&j.layout.districts)||{}}
@@ -728,70 +578,82 @@ function updateConnectUI(){var show=!!(S.cfg.api&&authed&&srvInfo&&!srvInfo.hasT
   st.className='status '+(srvInfo.hasToken&&!srvInfo.error?'ok':'bad');
   st.textContent=srvInfo.hasToken?(srvInfo.igUser?'مربوط بحساب @'+srvInfo.igUser:'يوجد رمز لكنه لم يعطِ بيانات بعد'):(srvInfo.canConnect?'غير مربوط. اضغط الزر.':'ضع IG_APP_ID وIG_APP_SECRET في Railway ثم أعد النشر.')}
 function igConnect(){if(!S.cfg.api||!authed){toast('سجّل دخول المدير أولاً');return}
-  fetch(S.cfg.api+'/api/auth/instagram/url',{method:'POST',headers:{'Content-Type':'application/json','x-admin-key':S.cfg.key},body:JSON.stringify({redirect:location.origin+'/auth/instagram/callback'})}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'خطأ');return j})}).then(function(j){location.href=j.url}).catch(function(e){toast('تعذر بدء الربط: '+e.message)})}
-el('btnConnect').addEventListener('click',igConnect);el('igConnect').addEventListener('click',igConnect);
-try{el('igRedir').value=location.origin+'/auth/instagram/callback'}catch(e){}
-function applyMode(){var a=adminOn(),srv=!!S.cfg.api;el('btnPanel').hidden=!a;el('btnLogin').hidden=!(srv&&!authed);el('btnLogout').hidden=!(srv&&authed);if(!a){el('panel').hidden=true;selectPlot(null);moveFrom=null}if(srv&&authed)renderCfg();updateConnectUI()}
-el('btnLogin').addEventListener('click',function(){el('login').hidden=!el('login').hidden;el('loginSt').textContent='';el('loginKey').focus()});
-el('loginCancel').addEventListener('click',function(){el('login').hidden=true});
-function doLogin(){var k=el('loginKey').value;if(!k||!S.cfg.api)return;el('loginSt').textContent='';verifyKey(k).then(function(ok){if(ok){S.cfg.key=k;authed=true;el('loginKey').value='';el('login').hidden=true;save();applyMode();openPanel(srvInfo&&!srvInfo.hasToken?'link':'plot');toast('تم الدخول كمدير')}else el('loginSt').textContent='المفتاح غير صحيح'}).catch(function(){el('loginSt').textContent='تعذر الاتصال بالخادم'})}
-el('loginGo').addEventListener('click',doLogin);el('loginKey').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin()});
-el('btnLogout').addEventListener('click',function(){authed=false;S.cfg.key='';save();applyMode();toast('تم الخروج')});
-function purgeDemo(){Object.keys(S.villagers).forEach(function(u){if(S.villagers[u].demo){Object.keys(S.plots).forEach(function(k){if(S.plots[k].owner===u)delete S.plots[k]});delete S.villagers[u]}});S.seeded=true}
-function probe(cb){var done=false;function fin(){if(!done){done=true;cb()}}
-  if(!/^https?:$/.test(location.protocol)||/claude\.ai|claudeusercontent/.test(location.hostname))return fin();
-  var t=setTimeout(fin,3500);
-  fetch('/api/state',{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){if(j&&typeof j==='object'&&('villagers' in j))S.cfg.api=location.origin}).catch(function(){}).then(function(){clearTimeout(t);fin()})}
-/* models synced from server */
-var fetching={};
-function fetchModel(id){if(fetching[id]||modelCache[id]||!S.cfg.api)return;fetching[id]=1;fetch(S.cfg.api+'/api/model/'+id).then(function(r){if(!r.ok)throw 0;return r.arrayBuffer()}).then(function(buf){return loadModelBuffer(id,buf)}).then(function(ok){if(ok)Object.keys(S.plots).forEach(function(k){if(S.plots[k].modelId===id)refreshPlot(k)})}).catch(function(){}).then(function(){delete fetching[id]})}
+var resetArmed=false;el('reset').addEventListener('click',function(){if(!resetArmed){resetArmed=true;el('resetHint').textContent='اضغط مرة أخرى خلال 5 ثوان لتأكيد المسح الكامل.';setTimeout(function(){resetArmed=false;el('resetHint').textContent=''},5000);return}
+  var cfg=S.cfg,st=S.settings;S=fresh();S.cfg=cfg;S.settings=st;S.seeded=true;try{localStorage.removeItem(LS)}catch(e){}refreshAll();renderBoard();save();el('resetHint').textContent='تم مسح القرية.';resetArmed=false});
 
-/* ---------- leaderboard / search ---------- */
-function vlistHtml(arr){return arr.map(function(v,i){var l=v.plot&&S.plots[v.plot]?S.plots[v.plot].level:levelOf(v);return '<button class="item" type="button" data-plot="'+esc(v.plot||'')+'"><span class="rank">'+(i+1)+'</span><span class="nm">'+esc(v.name||v.username)+'<small>@'+esc(v.username)+'</small></span><span class="lv">م'+l+'</span></button>'}).join('')}
-function renderBoard(){var all=Object.keys(S.villagers).map(function(k){return S.villagers[k]});all.sort(function(a,b){return points(b)-points(a)});
-  el('top').innerHTML=all.length?vlistHtml(all.slice(0,10)):'<p class="hint">لا يوجد سكان بعد. يظهر المتابع هنا فور تعليقه.</p>';
-  var q=normU(el('q').value),raw=el('q').value.trim().toLowerCase();var res=el('qres');if(!raw){res.innerHTML=''}else{var f=all.filter(function(v){return v.username.indexOf(q||raw)>=0||String(v.name||'').toLowerCase().indexOf(raw)>=0}).slice(0,6);res.innerHTML=f.length?vlistHtml(f):'<p class="hint">لا نتائج.</p>'}
-  el('fcount').textContent=Math.max(S.followers,all.length).toLocaleString('ar-EG');
-  
-  el('vlist').innerHTML=all.map(function(v){return '<option value="'+esc(v.username)+'">'}).join('')}
-function boardClick(e){var b=e.target.closest('.item');if(!b)return;var k=b.dataset.plot;if(!k){toast('لا يوجد بيت لهذا المستخدم بعد');return}flyTo(k);if(window.innerWidth<=760)el('ui').classList.remove('showboard')}
-el('top').addEventListener('click',boardClick);el('qres').addEventListener('click',boardClick);el('q').addEventListener('input',renderBoard);
+/* link / data */
+function renderCfg(){el('igUser').value=S.igUser||'';el('apiUrl').value=S.cfg.api||'';el('apiKey').value=S.cfg.key||'';el('igname').textContent=S.igUser?'@'+S.igUser:'حساب إنستغرام غير مربوط';try{el('igRedir').value=(S.cfg.api||location.origin)+'/auth/instagram/callback'}catch(e){}}
+function stat(msg,cls){var s=el('apiStatus');s.textContent=msg;s.className='status '+(cls||'')}
+el('apiSave').addEventListener('click',function(){S.igUser=normU(el('igUser').value);S.cfg.api=el('apiUrl').value.trim().replace(/\/$/,'');S.cfg.key=el('apiKey').value;renderCfg();save();if(S.cfg.api&&S.cfg.key)verifyKey(S.cfg.key).then(function(ok){authed=ok;applyMode();if(!ok)stat('مفتاح المدير غير صحيح.','bad');else poll(true)}).catch(function(){stat('تعذر الاتصال بالخادم.','bad')});else{applyMode();poll(true)}});
+function addVillager(u,name,extra){var r=upsert(u,name,extra);if(!r)return null;if(r.isNew)S.followers=Math.max(S.followers,Object.keys(S.villagers).length);return r}
+function serverAdd(names){var arr=[];names.forEach(function(n){var u=normU(n);if(u)arr.push(u)});if(!arr.length){toast('لا توجد أسماء صالحة');return}
+  fetch(S.cfg.api+'/api/add',{method:'POST',headers:{'Content-Type':'application/json','x-admin-key':S.cfg.key},body:JSON.stringify({usernames:arr})}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){toast(j.added?'أُضيف '+j.added+' متابع وبُنيت بيوتهم':'كل هؤلاء لديهم بيوت بالفعل');poll(true)}).catch(function(){toast('تعذرت الإضافة. تأكد من تسجيل الدخول كمدير')})}
+function afterChange(){var before=newKeys.length;assignAll();var ch=syncLevels();ch.forEach(function(k){refreshPlot(k,true)});newKeys.slice(before).forEach(function(k){refreshPlot(k,true)});renderBoard();save();return newKeys.slice(before)}
+el('addBtn').addEventListener('click',function(){var u=normU(el('addU').value);if(!u){toast('اكتب اسم المستخدم');return}if(S.cfg.api){serverAdd([u]);el('addU').value='';return}var r=addVillager(u,u);var nk=afterChange();el('addU').value='';if(nk.length){flyTo(nk[0]);toast('بُني بيت لـ @'+u)}else toast('@'+u+' لديه بيت بالفعل')});
+function parseNames(text){var out=[];try{var j=JSON.parse(text);var arr=Array.isArray(j)?j:(j.relationships_followers||j.followers||[]);arr.forEach(function(it){if(typeof it==='string')out.push(it);else if(it&&it.string_list_data&&it.string_list_data[0])out.push(it.string_list_data[0].value||it.string_list_data[0].href&&it.string_list_data[0].href.split('/').pop());else if(it&&it.username)out.push(it.username)});if(out.length)return out}catch(e){}
+  var m=text.match(/instagram\.com\/(?:_u\/)?([A-Za-z0-9._]+)/g);if(m&&m.length)return m.map(function(x){return x.split('/').pop()});return text.split(/[\s,;]+/)}
+function bulkAdd(names){if(S.cfg.api){serverAdd(names);return}var added=0;names.forEach(function(n){var u=normU(n);if(!u)return;var r=addVillager(u,u);if(r&&r.isNew)added++});afterChange();toast('أضيف '+added+' متابع جديد وبُنيت بيوتهم')}
+el('bulkBtn').addEventListener('click',function(){bulkAdd(el('bulk').value.split(/\n+/));el('bulk').value=''});
+el('bulkFile').addEventListener('change',function(){var f=this.files[0];if(!f)return;f.text().then(function(t){bulkAdd(parseNames(t))});this.value=''});
+el('exp').addEventListener('click',function(){var t=JSON.stringify({plots:S.plots,districts:S.districts,villagers:S.villagers,models:S.models});el('io').value=t;el('io').select();try{navigator.clipboard.writeText(t).then(function(){toast('نُسخت بيانات القرية')},function(){toast('حدد النص وانسخه يدوياً')})}catch(e){toast('حدد النص وانسخه يدوياً')}});
+el('imp').addEventListener('click',function(){try{var j=JSON.parse(el('io').value);if(!j.plots)throw 0;S.plots=j.plots;S.districts=j.districts||{};S.villagers=j.villagers||{};S.followers=Object.keys(S.villagers).length;refreshAll();rebuildOverlay();renderBoard();save();toast('تم استيراد القرية')}catch(e){toast('النص غير صالح')}});
 
-/* ---------- loop ---------- */
-function resize(){var w=window.innerWidth,h=window.innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
-window.addEventListener('resize',resize);
-var clock=new THREE.Clock(),acc=0,acc2=0,time=0;
-function frame(){requestAnimationFrame(frame);var dt=Math.min(clock.getDelta(),.1);time+=dt;
-  if(tween){tween.t=Math.min(1,tween.t+dt/1.1);var e=tween.t<.5?2*tween.t*tween.t:1-Math.pow(-2*tween.t+2,2)/2;controls.target.lerpVectors(tween.from,tween.to,e);camera.position.copy(controls.target).add(tween.offFrom.clone().lerp(tween.offTo,e));if(tween.t>=1)tween=null}
-  controls.update();acc+=dt;if(acc>.25){acc=0;updateWorld(false)}
-  var t=controls.target;sun.target.position.set(t.x,0,t.z);var n=S.settings.night;sun.position.set(t.x+(n?-45:50),n?75:85,t.z+(n?-35:40));
-  var ws=S.settings.walkerSpeed,cs=S.settings.carSpeed;walkers.forEach(function(w){stepWalker(w,dt,ws)});cars.forEach(function(c){stepCar(c,dt,cs)});
-  acc2+=dt;if(acc2>.3){acc2=0;meetings();respawnFar()}
-  for(var i=spawning.length-1;i>=0;i--){var s=spawning[i];s.t+=dt/.9;var k=Math.min(1,s.t),ease=1-Math.pow(1-k,3),over=ease+Math.sin(k*Math.PI)*.12;s.g.scale.y=Math.max(.01,over);if(k>=1){s.g.scale.y=1;spawning.splice(i,1)}}
-  var cp=camera.position,showL=S.settings.labels;
-  Object.keys(plotGroups).forEach(function(k){var g=plotGroups[k],ud=g.userData;if(ud.label){var d=cp.distanceTo(g.position);var op=showL?clamp((150-d)/70,0,1):0;ud.label.visible=op>.02;ud.label.material.opacity=op;var s2=clamp(d/70,.85,2.2);ud.label.scale.set(9*s2,2.64*s2,1)}
-    if(ud.puffs&&Math.abs(g.position.x-t.x)<110){ud.puffs.forEach(function(p){var q=(time*.22+p.ph)%1;p.m.position.set(p.x+q*3,p.y+q*9,p.z);var sc2=.7+q*2.2;p.m.scale.set(sc2,sc2,sc2);p.m.material.opacity=(1-q)*.5})}});
-  renderer.render(scene,camera)}
+/* live server */
+function schedulePush(){if(!S.cfg.api||!S.cfg.key||!authed)return;clearTimeout(pushT);pushT=setTimeout(function(){fetch(S.cfg.api+'/api/layout',{method:'POST',headers:{'Content-Type':'application/json','x-admin-key':S.cfg.key},body:JSON.stringify({plots:S.plots,districts:S.districts,lifeSettings:{walkers:S.settings.walkers,walkerCount:S.settings.walkerCount,walkerSpeed:S.settings.walkerSpeed,carCount:S.settings.carCount,carSpeed:S.settings.carSpeed,carMode:S.settings.carMode,carColor:S.settings.carColor},villagers:Object.keys(S.villagers).reduce(function(o,k){o[k]={plot:S.villagers[k].plot,levelLock:S.villagers[k].levelLock,bonus:S.villagers[k].bonus,coins:S.villagers[k].coins};return o},{})})}).catch(function(){})},1500)}
+var polling=false;
+function poll(manual){if(!S.cfg.api)return;if(polling)return;polling=true;
+  (manual&&S.cfg.key?fetch(S.cfg.api+'/api/refresh',{method:'POST',headers:{'x-admin-key':S.cfg.key}}).catch(function(){}):Promise.resolve()).then(function(){return fetch(S.cfg.api+'/api/state',{cache:'no-store'})}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()}).then(function(j){mergeServer(j);if(j.error)stat('متصل بالخادم لكن إنستغرام لم يعطِ البيانات: '+j.error,'bad');else if(!j.hasToken)stat('لم يُربط حساب إنستغرام بعد. اضغط «ربط حسابي بإنستغرام».','bad');else stat('متصل. آخر تحديث '+new Date().toLocaleTimeString('ar')+' • السكان من إنستغرام: '+(j.villagers||[]).length,'ok')}).catch(function(){stat('تعذر الاتصال بالخادم. تأكد من العنوان وتشغيل server.js.','bad');if(manual)toast('تعذر الاتصال بالخادم')}).then(function(){polling=false})}
+function mergeServer(j){var isAdmin=adminOn(),rebuilt=false;srvInfo={hasToken:j.hasToken,canConnect:j.canConnect,igUser:j.igUser,error:j.error};updateConnectUI();
+  if(j.lifeSettings){var ls=j.lifeSettings;var oldMode=S.settings.carMode,oldColor=S.settings.carColor;
+    if(typeof ls.walkers==='boolean')S.settings.walkers=ls.walkers;
+    if(Number.isFinite(Number(ls.walkerCount)))S.settings.walkerCount=Number(ls.walkerCount);
+    if(Number.isFinite(Number(ls.walkerSpeed)))S.settings.walkerSpeed=Number(ls.walkerSpeed);
+    if(Number.isFinite(Number(ls.carCount)))S.settings.carCount=Number(ls.carCount);
+    if(Number.isFinite(Number(ls.carSpeed)))S.settings.carSpeed=Number(ls.carSpeed);
+    if(ls.carMode==='mixed'||ls.carMode==='single')S.settings.carMode=ls.carMode;
+    if(typeof ls.carColor==='string'&&/^#[0-9a-fA-F]{6}$/.test(ls.carColor))S.settings.carColor=ls.carColor;
+    syncPeople();
+    if(oldMode!==S.settings.carMode||oldColor!==S.settings.carColor)recolorCars();
+    if(el('wOn'))el('wOn').checked=S.settings.walkers;
+    if(el('wCount'))el('wCount').value=S.settings.walkerCount;
+    if(el('wCountV'))el('wCountV').textContent=S.settings.walkerCount;
+    if(el('wSpeed'))el('wSpeed').value=S.settings.walkerSpeed;
+    if(el('cCount'))el('cCount').value=S.settings.carCount;
+    if(el('cCountV'))el('cCountV').textContent=S.settings.carCount;
+    if(el('cSpeed'))el('cSpeed').value=S.settings.carSpeed;
+    if(el('cMode'))el('cMode').value=S.settings.carMode;
+    if(el('cColor'))el('cColor').value=S.settings.carColor;
+  }
+  if((j.villagers||[]).length){var had=false;Object.keys(S.villagers).forEach(function(u){if(S.villagers[u].demo){had=true;Object.keys(S.plots).forEach(function(k){if(S.plots[k].owner===u)delete S.plots[k]});delete S.villagers[u]}});if(had)rebuilt=true}
+  var sig0=JSON.stringify(S.plots)+JSON.stringify(S.districts);
+  if(!isAdmin){S.plots=(j.layout&&j.layout.plots)||{};S.districts=(j.layout&&j.layout.districts)||{}}
+  else if(j.layout){var ol={};Object.keys(S.plots).forEach(function(k){if(S.plots[k].owner)ol[S.plots[k].owner]=1});Object.keys(j.layout.plots||{}).forEach(function(k){var p=j.layout.plots[k];if(!S.plots[k]&&!(p.owner&&ol[p.owner]))S.plots[k]=p});if(!Object.keys(S.districts).length&&j.layout.districts)S.districts=j.layout.districts}
+  if(JSON.stringify(S.plots)+JSON.stringify(S.districts)!==sig0)rebuilt=true;
+  (j.models||[]).forEach(function(m){if(!S.models.some(function(x){return x.id===m.id}))S.models.push(m);fetchModel(m.id)});
+  Object.keys(j.claims||{}).forEach(function(a){var real=normU(j.claims[a]),av=S.villagers[a];if(!av)return;var pk=av.plot;delete S.villagers[a];if(pk&&S.plots[pk]&&S.plots[pk].owner===a){var rv=upsert(real,real).v;S.plots[pk].owner=real;rv.plot=pk;rebuilt=true}});
+  var before=newKeys.length;
+  (j.villagers||[]).forEach(function(sv){var u=normU(sv.username);if(!u)return;var ex=S.villagers[u]&&S.villagers[u].demo;if(ex){delete S.villagers[u]}
+    var lay=j.layout&&j.layout.villagers&&j.layout.villagers[u]||{};var r=upsert(u,sv.name||u,{anon:sv.anon?true:undefined,keepDemo:false,comments:sv.comments||0,likes:sv.likes||0,since:sv.since||Date.now(),levelLock:lay.levelLock||undefined,bonus:lay.bonus||0,coins:lay.coins!=null?lay.coins:undefined});if(lay.plot&&!S.villagers[u].plot)S.villagers[u].plot=lay.plot;var ownPk=Object.keys(S.plots).filter(function(k){return S.plots[k].owner===u})[0];if(ownPk)S.villagers[u].plot=ownPk;if(S.villagers[u].coins==null)S.villagers[u].coins=300});
+  if(typeof j.followers==='number')S.followers=j.followers;else S.followers=Math.max(S.followers,Object.keys(S.villagers).length);
+  if(j.igUser&&S.igUser!==j.igUser){S.igUser=j.igUser;renderCfg()}
+  var oldCount=Object.keys(plotGroups).length;if(rebuilt)refreshAll();
+  assignAll();var ch=syncLevels();ch.forEach(function(k){refreshPlot(k,true)});var added=newKeys.slice(before);added.forEach(function(k){refreshPlot(k,true)});
+  if(added.length){toast('بُني '+added.length+' بيت جديد'+(added.length===1?' لـ @'+S.plots[added[0]].owner:''));if(added.length<4)flyTo(added[0])}
+  renderBoard();save()}
 
-/* ---------- boot ---------- */
-resize();
-function boot(){
-purgeDemo();applyTheme();renderCfg();applyMode();
-try{var qp=new URLSearchParams(location.search);if(qp.get('connected')){toast('تم ربط حسابك بإنستغرام');history.replaceState(null,'',location.pathname)}else if(qp.get('connect_error')){toast('فشل الربط: '+qp.get('connect_error'));history.replaceState(null,'',location.pathname)}}catch(e){}
-if(S.cfg.api&&S.cfg.key)verifyKey(S.cfg.key).then(function(ok){authed=ok;applyMode()}).catch(function(){});
-if(S.settings.font){DB.get('font').then(function(b){if(b)loadFont(b).then(function(ok){if(ok)setFont('UserFont')})}).catch(function(){})}
-S.models.forEach(function(m){DB.get('model:'+m.id).then(function(b){if(b)loadModelBuffer(m.id,b).then(function(ok){if(ok)Object.keys(S.plots).forEach(function(k){if(S.plots[k].modelId===m.id)refreshPlot(k)})})}).catch(function(){})});
-assignAll();syncLevels();newKeys.length=0;
-updateWorld(true);syncPeople();renderBoard();renderModels();fillDistricts();save();
-if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){labelCache={};refreshAll()});
-if(S.cfg.api){poll();}
-setInterval(function(){poll()},20000);
-setInterval(function(){var gain=false;Object.keys(S.plots).forEach(function(k){var p=S.plots[k];if(p.owner&&p.type&&S.villagers[p.owner]){S.villagers[p.owner].coins=(S.villagers[p.owner].coins||0)+(INCOME[p.type]||1)*(p.level||1);gain=true}});if(gain)save()},10000);
-frame();
-}
-probe(boot);
-})();
+/* ---------- mode: viewer / admin ---------- */
+function verifyKey(key){return fetch(S.cfg.api+'/api/auth',{method:'POST',headers:{'x-admin-key':key}}).then(function(r){return r.ok})}
+var srvInfo=null;
+function updateConnectUI(){var show=!!(S.cfg.api&&authed&&srvInfo&&!srvInfo.hasToken);el('btnConnect').hidden=!show;var st=el('igConnSt');if(!srvInfo){st.textContent='';return}
+  st.className='status '+(srvInfo.hasToken&&!srvInfo.error?'ok':'bad');
+  st.textContent=srvInfo.hasToken?(srvInfo.igUser?'مربوط بحساب @'+srvInfo.igUser:'يوجد رمز لكنه لم يعطِ بيانات بعد'):(srvInfo.canConnect?'غير مربوط. اضغط الزر.':'ضع IG_APP_ID وIG_APP_SECRET في Railway ثم أعد النشر.')}
+function igConnect(){if(!S.cfg.api||!authed){toast('سجّل دخول المدير أولاً');return}
+  location.href=S.cfg.api+'/auth/instagram'}
+
+/* ---------- startup ---------- */
+function applyMode(){var on=adminOn();document.body.classList.toggle('viewer',!on);el('adminBadge').hidden=!on;el('adminPanel').hidden=!on;el('viewerPanel').hidden=on;el('apiKey').value=on?S.cfg.key:'';if(on)renderCfg()}
+function boot(){load();renderCfg();applyMode();initSettings();refreshAll();renderBoard();animate();if(S.cfg.api){verifyKey(S.cfg.key||'').then(function(ok){authed=ok;applyMode();poll(false)}).catch(function(){authed=false;applyMode();poll(false)})}else{authed=false;applyMode()}setInterval(function(){poll(false)},30000)}
+boot();
 </script>
-
 </body>
 </html>
