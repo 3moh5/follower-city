@@ -342,7 +342,7 @@ const server = http.createServer(async (req, res) => {
       const { redirect } = JSON.parse((await readBody(req)).toString('utf8'));
       if (!/^https?:\/\/[^/]+\/auth\/instagram\/callback$/.test(String(redirect))) throw new Error('bad redirect');
       const st = newState(redirect);
-      const u = 'https://www.instagram.com/oauth/authorize?' + new URLSearchParams({
+      const u = 'https://follower-city-production-166fed3f.up.railway.app/auth/instagram/callback' + new URLSearchParams({
         client_id: IG_APP_ID, redirect_uri: redirect, response_type: 'code',
         scope: 'instagram_business_basic,instagram_business_manage_comments', state: st,
       });
