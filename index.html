@@ -356,7 +356,7 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){retur
 if(!window.THREE||!THREE.OrbitControls){document.body.insertAdjacentHTML('beforeend','<p style="position:fixed;top:40%;width:100%;text-align:center">تعذر تحميل مكتبة الرسم ثلاثي الأبعاد. تحقق من الاتصال بالإنترنت.</p>');return}
 
 /* ---------- constants ---------- */
-var P=14,R=6,GP=14,GR=6,B=20,DIST=4,RAD=8,LS='follower-city-v1',demoKey=null;
+var P=14,R=6,GP=14,GR=6,B=20,DIST=4,RAD=10,LS='follower-city-v1',demoKey=null;
 var TYPES={house:'بيت',farm:'مزرعة',orchard:'بستان',factory:'مصنع',shop:'متجر',park:'حديقة',tower:'برج',model:'نموذج 3D',plaza:'ساحة الأعلام'};
 var DTYPES={residential:'سكني',farm:'زراعي',industrial:'صناعي',commercial:'تجاري',park:'حدائق'};
 var DCOL={residential:'#86b95c',farm:'#a3c561',industrial:'#9c9a90',commercial:'#bdb7a6',park:'#6db851'};
