@@ -422,21 +422,9 @@ var canvas=el('c');
 var isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'')||(window.matchMedia&&matchMedia('(pointer:coarse)').matches&&Math.min(screen.width,screen.height)<900);
 
 var QT={
- low:{
-  ratio:1.25,shadow:false,rad:6,
-  lamps:false,seg:8,maxW:10,maxC:5,
-  aa:false,fl:.4,fogN:150,fogF:290
- },
- med:{
-  ratio:1.5,shadow:false,rad:8,
-  lamps:true,seg:10,maxW:24,maxC:12,
-  aa:false,fl:.7,fogN:160,fogF:340
- },
- high:{
-  ratio:2,shadow:true,rad:10,
-  lamps:true,seg:12,maxW:60,maxC:40,
-  aa:true,fl:1,fogN:170,fogF:380
- }
+ low:{ratio:1.25,shadow:false,rad:6,lamps:false,seg:8,maxW:10,maxC:5,aa:false,fl:.4,fogN:150,fogF:290},
+ med:{ratio:1.5,shadow:false,rad:8,lamps:true,seg:10,maxW:24,maxC:12,aa:false,fl:.7,fogN:160,fogF:340},
+ high:{ratio:2,shadow:true,rad:10,lamps:true,seg:12,maxW:60,maxC:40,aa:true,fl:1,fogN:170,fogF:380}
 };
 
 function qmode(){var m=S.settings.quality||'auto';return m==='auto'?(isMobile?'low':'high'):m}
