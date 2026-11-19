@@ -432,7 +432,7 @@ var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:Q().aa,powerPrefer
 renderer.setPixelRatio(pr);
 renderer.shadowMap.enabled=shadowsOn();renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 var scene=new THREE.Scene();
-var camera=new THREE.PerspectiveCamera(38,1,1,10000);camera.position.set(72,78,98);
+var camera=new THREE.PerspectiveCamera(38,1,1,100000);camera.position.set(72,78,98);
 var controls=new THREE.OrbitControls(camera,canvas);
 controls.enableDamping=true;controls.dampingFactor=.08;controls.maxPolarAngle=1.18;controls.minDistance=14;controls.maxDistance=190;controls.screenSpacePanning=false;
 controls.mouseButtons={LEFT:THREE.MOUSE.PAN,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:THREE.MOUSE.ROTATE};
