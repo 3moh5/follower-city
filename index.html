@@ -856,8 +856,7 @@ function mergeServer(j){var isAdmin=adminOn(),rebuilt=false;srvInfo={hasToken:j.
   if((j.villagers||[]).length){var had=false;Object.keys(S.villagers).forEach(function(u){if(S.villagers[u].demo){had=true;Object.keys(S.plots).forEach(function(k){if(S.plots[k].owner===u)delete S.plots[k]});delete S.villagers[u]}});if(had)rebuilt=true}
   var sig0=JSON.stringify(S.plots)+JSON.stringify(S.districts);
   if(!isAdmin){S.plots=(j.layout&&j.layout.plots)||{};S.districts=(j.layout&&j.layout.districts)||{}}
-  else if(j.layout){var ol={};Object.keys(S.plots).forEach(function(k){if(S.plots[k].owner)ol[S.plots[k].owner]=1});Object.keys(j.layout.plots||{}).forEach(function(k){var p=j.layout.plots[k];if(!S.plots[k]&&!(p.owner&&ol[p.owner]))S.plots[k]=p});if(!Object.keys(S.districts).length&&j.layout.districts)S.districts=j.layout.districts}
-  if(JSON.stringify(S.plots)+JSON.stringify(S.districts)!==sig0)rebuilt=true;
+else if(j.layout){var ol={};Object.keys(S.plots).forEach(function(k){if(S.plots[k].owner)ol[S.plots[k].owner]=1});var hasLocal=Object.keys(S.plots).length>0;Object.keys(j.layout.plots||{}).forEach(function(k){var p=j.layout.plots[k];if(S.plots[k])return;if(p.owner){if(!ol[p.owner])S.plots[k]=p}else if(!hasLocal){S.plots[k]=p}});if(!Object.keys(S.districts).length&&j.layout.districts)S.districts=j.layout.districts}  if(JSON.stringify(S.plots)+JSON.stringify(S.districts)!==sig0)rebuilt=true;
   (j.models||[]).forEach(function(m){if(!S.models.some(function(x){return x.id===m.id}))S.models.push(m);fetchModel(m.id)});
   Object.keys(j.claims||{}).forEach(function(a){var real=normU(j.claims[a]),av=S.villagers[a];if(!av)return;var pk=av.plot;delete S.villagers[a];if(pk&&S.plots[pk]&&S.plots[pk].owner===a){var rv=upsert(real,real).v;S.plots[pk].owner=real;rv.plot=pk;rebuilt=true}});
   var before=newKeys.length;
